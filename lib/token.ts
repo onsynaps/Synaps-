@@ -52,6 +52,10 @@ async function pickToken(logs: RawLog[], treasuryTopic: string): Promise<TokenIn
     if (!PONS_FACTORIES.includes(String(log.address).toLowerCase())) continue;
     const t = (log.topics || []).map((x) => String(x).toLowerCase());
     if (t.length < 3 || t[2] !== treasuryTopic) continue;
+    // the launch transaction itself must be sent by the treasury, so nobody can launch "on behalf" of it
+    if (!log.transactionHash) continue;
+    const tx = await client().getTransaction({ hash: log.transactionHash as `0x${string}` }).catch(() => null);
+    if (!tx || tx.from.toLowerCase() !== "0x" + treasuryTopic.slice(26)) continue;
     const token = "0x" + t[1].slice(26);
     const meta = await readMeta(token);
     if (!meta || !SYMBOL_OK.test(meta.symbol)) continue;
@@ -86,9 +90,17 @@ async function viaExplorer(treasuryTopic: string): Promise<TokenInfo | null | un
 /** Fallback: walk the chain with eth_getLogs from where we left off, within a time budget. */
 async function viaRpc(treasuryTopic: string): Promise<TokenInfo | null> {
   const c = client();
-  const latest = Number(await c.getBlockNumber());
+  const treasury = ("0x" + treasuryTopic.slice(26)) as `0x${string}`;
+  const [latestBig, nonce] = await Promise.all([c.getBlockNumber(), c.getTransactionCount({ address: treasury })]);
+  const latest = Number(latestBig);
   let from = (await getConfig<number>("token_scan_block")) ?? latest - 20_000;
-  let step = 5_000;
+  // A launch is a transaction FROM the treasury. If it hasn't sent any since the last full scan, skip ahead.
+  const lastNonce = await getConfig<number>("token_scan_nonce");
+  if (lastNonce != null && nonce === lastNonce) {
+    await setConfig("token_scan_block", latest + 1).catch(() => {});
+    return null;
+  }
+  let step = 2_000;
   const until = Date.now() + 7_000;
   while (from <= latest && Date.now() < until) {
     const to = Math.min(latest, from + step - 1);
@@ -101,11 +113,13 @@ async function viaRpc(treasuryTopic: string): Promise<TokenInfo | null> {
       if (found) return found;
       from = to + 1;
     } catch {
-      if (step <= 500) break;
-      step = Math.floor(step / 4); // the RPC refused the range; try smaller
+      if (step <= 100) break;
+      step = Math.max(100, Math.floor(step / 4)); // the RPC refused the range (free plans cap it); try smaller
     }
   }
   await setConfig("token_scan_block", from).catch(() => {});
+  // only remember the nonce once the scan has caught up, so a launch mid-gap is never skipped
+  if (from > latest) await setConfig("token_scan_nonce", nonce).catch(() => {});
   return null;
 }
 
