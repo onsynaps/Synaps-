@@ -269,7 +269,7 @@ export default function ChatPage() {
     if (id === activeId) setActiveId("");
   }
 
-  const estimate = !model ? "" : model.free ? "Free" : imageMode && draws(model)
+  const estimate = !model ? "" : imageMode && !draws(model) ? "" : model.free ? "Free" : imageMode && draws(model)
     ? (model.imagePrice ? "≈ " + fmtUsd(Math.ceil(model.imagePrice * 1e6), 3) + " per image" : "Priced per image")
     : "≈ " + fmtUsd(Math.ceil(model.completionPrice * 800 * 1e6), 4) + " per reply";
 
@@ -395,6 +395,16 @@ export default function ChatPage() {
               </span>
             </div>
           )}
+          {imageMode && model && (
+            <div className="img-hint" role="status">
+              <span className="img-hint-dot" aria-hidden="true" />
+              <span>
+                <strong>Image mode on.</strong>{" "}
+                {draws(model) ? `Describe the picture and ${model.name} will create it.` : `${model.name} can't create images. Describe the picture, then pick an image model when you send.`}
+              </span>
+              <button type="button" className="img-hint-x" aria-label="Turn off image mode" onClick={() => setImageMode(false)}>Off</button>
+            </div>
+          )}
           <form className="ch-form" onSubmit={(e) => { e.preventDefault(); send(input); }}>
             {files.length > 0 && (
               <div className="att-row">
@@ -427,7 +437,7 @@ export default function ChatPage() {
                 </button>
                 <button type="button" className={"tool-btn" + (imageMode ? " on" : "")} aria-pressed={imageMode} title="Create an image" onClick={() => setImageMode((v) => !v)}>
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="10" r="2" /><path d="M21 16l-5-5-8 9" /></svg>
-                  <span>Image</span>
+                  <span>{imageMode ? "Image on" : "Image"}</span>
                 </button>
                 <span className="num ch-estimate">{estimate}</span>
               </div>
