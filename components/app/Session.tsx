@@ -5,7 +5,7 @@ import { base } from "viem/chains";
 import { robinhoodChain } from "@/lib/chains";
 import { signInWith, type Eth } from "@/lib/wallet";
 
-type Me = { address: string | null; balance_micros: number; treasury: string; freeDailyLimit: number; markup: number };
+type Me = { address: string | null; balance_micros: number; treasury: string; freeDailyLimit: number; markup: number; isAdmin?: boolean };
 type Ctx = {
   me: Me | null;
   loading: boolean;

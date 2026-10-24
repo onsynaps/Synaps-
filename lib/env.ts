@@ -11,6 +11,11 @@ export const env = {
   treasury: (process.env.NEXT_PUBLIC_TREASURY || "").toLowerCase(),
   privyAppId: process.env.NEXT_PUBLIC_PRIVY_APP_ID || "cmudyp5x100240ck2rd5rvkcd",
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://synaps.chat",
+  // wallets allowed to open /app/admin; defaults to the treasury wallet
+  adminAddresses: (process.env.ADMIN_ADDRESSES || process.env.NEXT_PUBLIC_TREASURY || "")
+    .split(",").map((a) => a.trim().toLowerCase()).filter(Boolean),
+  // warn in the admin dashboard when OpenRouter credit drops below this
+  lowCreditUsd: Number(process.env.LOW_CREDIT_USD ?? "5"),
 };
 
 export function missingEnv(): string[] {

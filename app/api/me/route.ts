@@ -10,5 +10,5 @@ export async function GET() {
   const base = { treasury: env.treasury, freeDailyLimit: env.freeDailyLimit, markup: env.markup };
   if (!address) return Response.json({ address: null, balance_micros: 0, ...base });
   const user = await getUser(address).catch(() => null);
-  return Response.json({ address, balance_micros: user?.balance_micros ?? 0, ...base });
+  return Response.json({ address, balance_micros: user?.balance_micros ?? 0, isAdmin: env.adminAddresses.includes(address.toLowerCase()), ...base });
 }

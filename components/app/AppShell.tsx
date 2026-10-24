@@ -38,6 +38,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {NAV.map((n) => (
                 <a key={n.href} href={n.href} className={path === n.href ? "on" : ""} onClick={() => setOpen(false)}>{n.label}</a>
               ))}
+              {me?.isAdmin && <a href="/app/admin" className={path === "/app/admin" ? "on" : ""} onClick={() => setOpen(false)}>Admin</a>}
               <a href={X_URL} target="_blank" rel="noreferrer" className="ap-nav-x">X · {X_HANDLE}</a>
             </nav>
           </div>
