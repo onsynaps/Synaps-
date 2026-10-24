@@ -59,3 +59,15 @@ export async function rateHit(bucket: string, limit: number, windowSeconds: numb
     return true;
   }
 }
+
+/** Checks several daily free counters at once. Returns 0 when allowed (and counts it), else the 1-based index of the limit that was hit. */
+export async function takeFreeMulti(keys: string[], limits: number[]): Promise<number> {
+  const { data, error } = await db().rpc("syn_take_free_multi", { p_keys: keys, p_limits: limits });
+  if (error) throw error;
+  return Number(data ?? 0);
+}
+
+export async function freeLeft(keys: string[], limits: number[]): Promise<number> {
+  const { data } = await db().rpc("syn_free_left", { p_keys: keys, p_limits: limits });
+  return Number(data ?? 0);
+}

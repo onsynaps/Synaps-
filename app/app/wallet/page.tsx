@@ -4,6 +4,7 @@ import { useSession } from "@/components/app/Session";
 import { fmtUsd } from "@/lib/money";
 import { CHAINS, type ChainKey } from "@/lib/chains";
 import { sendTopup } from "@/lib/wallet";
+import { InvitePanel } from "@/components/app/InvitePanel";
 
 type Usage = { id: number; source: string; model: string; completion_tokens: number; charged_micros: number; created_at: string };
 type Topup = { tx_hash: string; chain: ChainKey; asset: string; usd_micros: number; created_at: string };
@@ -50,7 +51,8 @@ export default function WalletPage() {
       const r = await fetch("/api/topup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ txHash: hash, chain }) });
       const j = await r.json().catch(() => ({}));
       if (r.ok) {
-        setStatus({ kind: "ok", text: j.bonus_micros ? `Added ${fmtUsd(j.credited_micros)} to your balance, including a ${fmtUsd(j.bonus_micros)} $SYNAPS bonus.` : `Added ${fmtUsd(j.credited_micros)} to your balance.` });
+        const extras = [j.bonus_micros ? `${fmtUsd(j.bonus_micros)} $SYNAPS bonus` : "", j.referral_micros ? `${fmtUsd(j.referral_micros)} invite bonus` : ""].filter(Boolean);
+        setStatus({ kind: "ok", text: `Added ${fmtUsd(j.credited_micros)} to your balance${extras.length ? `, including a ${extras.join(" and a ")}` : ""}.` });
         setPending(null);
         await refresh();
         await load();
@@ -164,6 +166,8 @@ export default function WalletPage() {
           )}
         </section>
       </div>
+
+      <InvitePanel />
 
       <section className="panel card-pad" style={{ display: "flex", flexDirection: "column", gap: 10 }}>
         <h2 className="h3" style={{ fontSize: 24 }}>Activity</h2>

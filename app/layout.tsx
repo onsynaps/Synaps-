@@ -3,6 +3,7 @@ import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
 import { PwaRegister } from "@/components/Pwa";
+import { RefCapture } from "@/components/RefCapture";
 import { env } from "@/lib/env";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
@@ -39,6 +40,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         {children}
         <Analytics />
         <PwaRegister />
+        <RefCapture />
       </body>
     </html>
   );

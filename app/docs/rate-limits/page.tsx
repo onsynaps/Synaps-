@@ -15,10 +15,12 @@ export default function RateLimits() {
             <tr><td>API, free models</td><td><strong>{FREE_DAILY * 5} requests / day</strong></td><td>Each API key, on <code>:free</code> models</td></tr>
             <tr><td>API, your own cap</td><td>Your daily USD limit</td><td>Keys you gave a daily limit</td></tr>
             <tr><td>Chat app</td><td><strong>30 messages / minute</strong></td><td>Each wallet, or each IP when signed out</td></tr>
-            <tr><td>Chat app, free models</td><td><strong>{FREE_DAILY} messages / day</strong></td><td>Each IP address</td></tr>
+            <tr><td>Chat app, free models</td><td><strong>{FREE_DAILY} messages / day</strong></td><td>Each browser and each IP address (whichever runs out first)</td></tr>
+            <tr><td>Free models, everyone</td><td>A shared daily total</td><td>All free traffic together, so free models stay up for everyone</td></tr>
           </tbody>
         </table>
       </div>
+      <p>Free models in the chat only work on the Synaps website. To use free models from code, create an API key.</p>
       <p>Daily limits reset at midnight UTC. Per-minute limits use a fixed one-minute window.</p>
 
       <h2>When you hit a limit</h2>

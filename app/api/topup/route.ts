@@ -89,6 +89,26 @@ export async function POST(req: Request) {
   if (error) return bad("Could not credit this top-up. Contact support with your transaction hash.", 500);
   if (!credited) return bad("This transaction was already credited.", 409);
 
+  // invited wallets: on the first qualifying top-up, both the inviter and this wallet get bonus credit (once)
+  let referralMicros = 0;
+  try {
+    const { data: ref } = await db().rpc("syn_referral_reward", {
+      p_address: address,
+      p_tx: txHash,
+      p_usd: usdMicros,
+      p_referrer_pct: env.refReferrerPct,
+      p_referee_pct: env.refRefereePct,
+      p_cap: Math.round(env.refCapUsd * 1e6),
+      p_min: Math.round(env.refMinUsd * 1e6),
+    });
+    referralMicros = Number((ref as any)?.referee_micros ?? 0);
+  } catch {}
+
   const { data: user } = await db().from("syn_users").select("balance_micros").eq("address", address).single();
-  return Response.json({ credited_micros: usdMicros + bonusMicros, bonus_micros: bonusMicros, balance_micros: user?.balance_micros ?? 0 });
+  return Response.json({
+    credited_micros: usdMicros + bonusMicros + referralMicros,
+    bonus_micros: bonusMicros,
+    referral_micros: referralMicros,
+    balance_micros: user?.balance_micros ?? 0,
+  });
 }

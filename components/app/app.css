@@ -240,3 +240,14 @@
 @media (max-width: 760px) { .mdl-stats { grid-template-columns: 1fr 1fr; } }
 
 @media (max-width: 720px) { .ap-install .pwa-label { display: none; } .ap-install { padding: 0 11px; } }
+
+/* invite friends */
+.inv { display: flex; flex-direction: column; gap: 16px; border-color: rgba(111,227,240,.25); }
+.inv-sub { margin: 6px 0 0; color: var(--muted); max-width: 62ch; }
+.inv-sub strong { color: var(--fg); font-weight: 500; }
+.inv-link { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; padding: 10px 10px 10px 16px; border-radius: 14px; border: 1px solid var(--line); background: #0a0910; }
+.inv-link code { flex: 1 1 220px; min-width: 0; font-size: 14px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--fg); }
+.inv-stats { margin: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+.inv-stats dd { margin: 4px 0 0; font-size: 22px; }
+.inv-note { margin: 0; font-size: 13px; color: var(--cyan); }
+@media (max-width: 520px) { .inv-stats { grid-template-columns: 1fr 1fr; } }

@@ -1,6 +1,6 @@
 import { authKey, spentToday } from "@/lib/apikey";
 import { findModel } from "@/lib/models";
-import { getUser, rateHit, takeFree } from "@/lib/db";
+import { getUser, rateHit, takeFreeMulti } from "@/lib/db";
 import { relay } from "@/lib/relay";
 import { env } from "@/lib/env";
 import { bad } from "@/lib/http";
@@ -21,8 +21,10 @@ export async function POST(req: Request) {
   if (!(await rateHit("api:" + key.keyId, 60, 60))) {
     return bad("Rate limit: 60 requests per minute per key. Slow down and retry.", 429);
   }
-  if (model.free && !(await takeFree("key:" + key.keyId, env.freeDailyLimit * 5))) {
-    return bad(`This key used today's ${env.freeDailyLimit * 5} free-model requests. Use a paid model or try again tomorrow.`, 429);
+  if (model.free) {
+    const hit = await takeFreeMulti(["key:" + key.keyId, "global"], [env.freeDailyLimit * 5, env.freeGlobalLimit]);
+    if (hit === 1) return bad(`This key used today's ${env.freeDailyLimit * 5} free-model requests. Use a paid model or try again tomorrow.`, 429);
+    if (hit === 2) return bad("Free models have reached today's limit for everyone. Use a paid model or try again tomorrow.", 429);
   }
 
   if (!model.free) {

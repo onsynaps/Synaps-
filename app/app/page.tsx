@@ -5,6 +5,7 @@ import { fmtUsd, perMillion } from "@/lib/money";
 import type { Model } from "@/lib/models";
 import { Markdown } from "@/components/app/Markdown";
 import { OrbitMark } from "@/components/Logo";
+import { deviceId } from "@/lib/device";
 import { ACCEPT, MAX_FILES, readAttachment, fmtSize, type Attachment } from "@/lib/attachments";
 
 type Msg = {
@@ -70,7 +71,7 @@ function toApi(m: Msg): { role: string; content: any } {
 }
 
 export default function ChatPage() {
-  const { me, signIn, setBalance } = useSession();
+  const { me, signIn, setBalance, setFreeLeft } = useSession();
   const [models, setModels] = useState<Model[]>([]);
   const [modelId, setModelId] = useState("");
   const [convos, setConvos] = useState<Convo[]>([]);
@@ -206,7 +207,9 @@ export default function ChatPage() {
       });
 
     try {
-      const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json" }, body: payload, signal: ac.signal });
+      const res = await fetch("/api/chat", { method: "POST", headers: { "Content-Type": "application/json", "x-syn-device": deviceId() }, body: payload, signal: ac.signal });
+      const fl = res.headers.get("x-free-left");
+      if (fl != null && fl !== "") setFreeLeft(Number(fl));
       if (!res.ok || !res.body) {
         const j = await res.json().catch(() => ({}));
         throw new Error(j?.error?.message || "Something went wrong. Try again.");
@@ -273,7 +276,7 @@ export default function ChatPage() {
     if (id === activeId) setActiveId("");
   }
 
-  const estimate = !model ? "" : imageMode && !draws(model) ? "" : model.free ? "Free" : imageMode && draws(model)
+  const estimate = !model ? "" : imageMode && !draws(model) ? "" : model.free ? (typeof me?.freeLeft === "number" ? `Free · ${me.freeLeft} left today` : "Free") : imageMode && draws(model)
     ? (model.imagePrice ? "≈ " + fmtUsd(Math.ceil(model.imagePrice * 1e6), 3) + " per image" : "Priced per image")
     : "≈ " + fmtUsd(Math.ceil(model.completionPrice * 800 * 1e6), 4) + " per reply";
 

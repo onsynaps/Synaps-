@@ -1,11 +1,12 @@
 "use client";
 import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
+import { deviceId } from "@/lib/device";
 import { PrivyProvider, usePrivy, useWallets } from "@privy-io/react-auth";
 import { base } from "viem/chains";
 import { robinhoodChain } from "@/lib/chains";
 import { signInWith, type Eth } from "@/lib/wallet";
 
-type Me = { address: string | null; balance_micros: number; treasury: string; freeDailyLimit: number; markup: number; isAdmin?: boolean };
+type Me = { address: string | null; balance_micros: number; treasury: string; freeDailyLimit: number; freeLeft?: number | null; markup: number; isAdmin?: boolean };
 type Ctx = {
   me: Me | null;
   loading: boolean;
@@ -14,6 +15,7 @@ type Ctx = {
   signIn: () => Promise<void>;
   signOut: () => Promise<void>;
   setBalance: (micros: number) => void;
+  setFreeLeft: (n: number) => void;
   /** EIP-1193 provider for the signed-in wallet; opens the wallet modal if it is not connected. */
   getProvider: () => Promise<Eth>;
 };
@@ -32,7 +34,7 @@ function SessionInner({ children }: { children: React.ReactNode }) {
 
   const refresh = useCallback(async () => {
     try {
-      const r = await fetch("/api/me", { cache: "no-store" });
+      const r = await fetch("/api/me", { cache: "no-store", headers: { "x-syn-device": deviceId() } });
       setMe(await r.json());
     } catch {
       setMe({ address: null, balance_micros: 0, treasury: "", freeDailyLimit: 20, markup: 0.2 });
@@ -96,9 +98,10 @@ function SessionInner({ children }: { children: React.ReactNode }) {
   }, [me?.address, wallets, authenticated, login]);
 
   const setBalance = useCallback((micros: number) => setMe((m) => (m ? { ...m, balance_micros: micros } : m)), []);
+  const setFreeLeft = useCallback((n: number) => setMe((m) => (m ? { ...m, freeLeft: n } : m)), []);
 
   return (
-    <SessionCtx.Provider value={{ me, loading: loading || !ready, error, refresh, signIn, signOut, setBalance, getProvider }}>
+    <SessionCtx.Provider value={{ me, loading: loading || !ready, error, refresh, signIn, signOut, setBalance, setFreeLeft, getProvider }}>
       {children}
     </SessionCtx.Provider>
   );

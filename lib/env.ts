@@ -19,6 +19,13 @@ export const env = {
   // extra credit for paying with $SYNAPS (0.1 = +10%), and the top-up size the bonus applies to
   synapsBonus: Math.max(0, Math.min(1, Number(process.env.SYNAPS_BONUS ?? "0.1"))),
   synapsBonusCapUsd: Number(process.env.SYNAPS_BONUS_CAP_USD ?? "500"),
+  // referrals: share of the friend's FIRST top-up paid as credit to each side
+  refReferrerPct: Number(process.env.REF_REFERRER_PCT ?? "0.1"),
+  refRefereePct: Number(process.env.REF_REFEREE_PCT ?? "0.05"),
+  refCapUsd: Number(process.env.REF_CAP_USD ?? "20"),
+  refMinUsd: Number(process.env.REF_MIN_USD ?? "2"),
+  // free tier: all free chat traffic together, per day (keeps us under OpenRouter's free-model cap)
+  freeGlobalLimit: Number(process.env.FREE_GLOBAL_DAILY_LIMIT ?? "800"),
 };
 
 export function missingEnv(): string[] {

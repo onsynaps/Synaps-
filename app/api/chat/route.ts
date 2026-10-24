@@ -1,6 +1,7 @@
 import { getSessionAddress } from "@/lib/session";
 import { findModel, getModels, canReadImages, canMakeImages, readsFilesNatively, type Model } from "@/lib/models";
-import { getUser, takeFree, rateHit } from "@/lib/db";
+import { getUser, takeFreeMulti, freeLeft, rateHit } from "@/lib/db";
+import { freeKeys, sameOrigin } from "@/lib/free";
 import { relay } from "@/lib/relay";
 import { env, missingEnv } from "@/lib/env";
 import { bad, clientIp } from "@/lib/http";
@@ -53,10 +54,17 @@ export async function POST(req: Request) {
     return bad("You're sending messages too fast. Wait a few seconds and try again.", 429);
   }
 
+  let freeLeftAfter: number | null = null;
   if (model.free) {
     if (missingEnv().includes("SUPABASE_URL")) return bad("The database is not configured yet.", 503);
-    const allowed = await takeFree(clientIp(req), env.freeDailyLimit);
-    if (!allowed) return bad(`You've used today's ${env.freeDailyLimit} free messages. Connect a wallet to keep going with paid models.`, 429);
+    // free chat is for people on the site; scripts and bots should use the API with a key
+    if (!sameOrigin(req)) return bad("Free models in the chat only work on the Synaps website. For code, create an API key.", 403);
+    const f = freeKeys(req);
+    if (!f.device) return bad("Refresh the page and try again.", 400);
+    const hit = await takeFreeMulti(f.keys, f.limits);
+    if (hit === f.keys.length) return bad("Free models have reached today's limit for everyone. Connect a wallet to use paid models, or come back tomorrow.", 429);
+    if (hit) return bad(`You've used today's ${env.freeDailyLimit} free messages. Connect a wallet to keep going with paid models.`, 429);
+    freeLeftAfter = await freeLeft(f.keys.slice(0, -1), f.limits.slice(0, -1)).catch(() => null);
   } else {
     if (!address) return bad("Connect your wallet to use this model.", 401);
     const user = await getUser(address);
@@ -74,7 +82,7 @@ export async function POST(req: Request) {
   if (hasPdf && !readsFilesNatively(model)) extra.plugins = [{ id: "file-parser", pdf: { engine: "pdf-text" } }];
   if (makeImage) extra.modalities = ["image", "text"];
 
-  return relay({
+  const res = await relay({
     // images come back as one JSON response, so image generation does not stream
     body: { messages, stream: !makeImage, max_tokens: Math.min(Number(body.max_tokens) || 4096, 8192), ...extra },
     model,
@@ -82,4 +90,8 @@ export async function POST(req: Request) {
     who: address ? { address, source: "chat" } : null,
     injectSynapsEvent: true,
   });
+  if (freeLeftAfter != null) {
+    try { res.headers.set("x-free-left", String(freeLeftAfter)); } catch {}
+  }
+  return res;
 }

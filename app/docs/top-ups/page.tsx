@@ -55,6 +55,14 @@ export default function TopUps() {
       </ul>
       <Callout kind="note" title="Only the official contract counts">Tokens sent from any other contract, even one called SYNAPS, are not credited and cannot be returned.</Callout>
 
+      <h2>Invite bonus</h2>
+      <p>
+        Every wallet gets an invite link on the Wallet page. When someone opens it, connects a wallet and tops up for the first time,
+        you receive <strong>10%</strong> of that top-up as credit and they receive <strong>+5%</strong> extra. The bonus is paid once per invited wallet,
+        on a first top-up of $2 or more, and is capped at $20 for each side. You can&apos;t invite your own wallet, and a wallet that has already topped up
+        can&apos;t be linked to an inviter afterwards.
+      </p>
+
       <Pager prev={{ href: "/docs/billing", label: "Billing & pricing" }} next={{ href: "/docs/rate-limits", label: "Rate limits" }} />
     </article>
   );
