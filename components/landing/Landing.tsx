@@ -5,6 +5,7 @@ import { XButton, XIcon } from "@/components/XLink";
 import { X_URL, X_HANDLE } from "@/lib/site";
 import { CopyButton } from "@/components/docs/CopyButton";
 import { CHAINS } from "@/lib/chains";
+import { InstallButton } from "@/components/Pwa";
 import "./landing.css";
 
 export type CardModel = {
@@ -347,6 +348,7 @@ reply = client.chat.completions.create(
               <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
                 <a className="btn btn-solid" href="/app" style={{ minHeight: 56, padding: "0 30px", fontSize: 16 }}>Launch Synaps {ARROW}</a>
                 <a className="btn btn-ghost" href={X_URL} target="_blank" rel="noreferrer" style={{ minHeight: 56, padding: "0 26px", fontSize: 16 }}><XIcon size={15} /> Follow {X_HANDLE}</a>
+                <InstallButton className="btn btn-ghost lp-install" />
               </div>
             </div>
           </div>

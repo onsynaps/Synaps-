@@ -7,6 +7,7 @@ import { X_URL, X_HANDLE } from "@/lib/site";
 import { useSession } from "./Session";
 import { fmtUsd } from "@/lib/money";
 import "./app.css";
+import { InstallButton } from "@/components/Pwa";
 
 const NAV = [
   { href: "/app", label: "Chat" },
@@ -43,6 +44,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
             </nav>
           </div>
           <div className="ap-right">
+            <InstallButton className="btn btn-ghost btn-sm ap-install" />
             <XButton className="ap-x" />
             {me?.address ? (
               <>

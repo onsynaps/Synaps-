@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
 import { Analytics } from "@vercel/analytics/next";
+import { PwaRegister } from "@/components/Pwa";
 import { env } from "@/lib/env";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
@@ -21,6 +22,7 @@ export const metadata: Metadata = {
   keywords: ["AI API", "pay with crypto", "Claude API", "GPT API", "Gemini API", "DeepSeek API", "OpenAI compatible", "Robinhood Chain", "Base", "USDC", "ETH", "pay per message"],
   applicationName: "Synaps",
   appleWebApp: { capable: true, title: "Synaps", statusBarStyle: "black-translucent" },
+  icons: { apple: "/icons/apple-touch-icon.png" },
 };
 
 export const viewport: Viewport = {
@@ -36,6 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         {children}
         <Analytics />
+        <PwaRegister />
       </body>
     </html>
   );
