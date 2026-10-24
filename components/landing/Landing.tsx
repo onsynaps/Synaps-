@@ -3,6 +3,8 @@ import { useEffect, useRef } from "react";
 import { Brand, OrbitMark } from "@/components/Logo";
 import { XButton, XIcon } from "@/components/XLink";
 import { X_URL, X_HANDLE } from "@/lib/site";
+import { CopyButton } from "@/components/docs/CopyButton";
+import { CHAINS } from "@/lib/chains";
 import "./landing.css";
 
 export type CardModel = {
@@ -29,7 +31,7 @@ function ctx(n: number) {
 
 const STATEMENT = "Every model you need, behind one balance in your wallet. You pay for the messages you send, and";
 
-export default function Landing({ cards, receipt, markupPct, apiBase }: { cards: CardModel[]; receipt: Receipt; markupPct: number; apiBase: string }) {
+export default function Landing({ cards, receipt, markupPct, apiBase, token }: { cards: CardModel[]; receipt: Receipt; markupPct: number; apiBase: string; token?: { address: string; symbol: string } | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -307,13 +309,32 @@ reply = client.chat.completions.create(
           <div className="wrap">
             <p className="mono" style={{ marginBottom: 22 }}>The token</p>
             <h2 className="lp-big" id="big">$SYNAPS</h2>
-            <p style={{ margin: "28px auto 56px", maxWidth: "38ch", color: "var(--muted)", fontSize: 19, fontWeight: 300 }}>Coming on Pons. Synaps works today with ETH and USDC; the token will make your balance go further.</p>
+            {token ? (
+              <>
+                <p style={{ margin: "28px auto 22px", maxWidth: "38ch", color: "var(--muted)", fontSize: 19, fontWeight: 300 }}>Live on Pons. Launched from the Synaps treasury wallet.</p>
+                <div className="lp-ca">
+                  <span className="mono lp-ca-k">Contract</span>
+                  <code className="lp-ca-v">{token.address}</code>
+                  <span className="lp-ca-btns">
+                    <CopyButton text={token.address} />
+                    <a href={`${CHAINS.robinhood.explorer}/token/${token.address}`} target="_blank" rel="noreferrer">Explorer ↗</a>
+                  </span>
+                </div>
+                <p style={{ margin: "0 auto 56px", fontSize: 13, color: "var(--dim)" }}>Always check the contract matches this one. Any other address is not ours.</p>
+              </>
+            ) : (
+              <p style={{ margin: "28px auto 56px", maxWidth: "38ch", color: "var(--muted)", fontSize: 19, fontWeight: 300 }}>Coming on Pons. Synaps works today with ETH and USDC; the token will make your balance go further.</p>
+            )}
             <div className="lp-tiles">
               <div className="lp-tile"><strong>Bonus credit</strong><span className="mono" style={{ fontSize: 11 }}>Pay with $SYNAPS</span><p>Top up with the token and get more credit for the same amount. Rate announced at launch.</p></div>
               <div className="lp-tile"><strong>Public treasury</strong><span className="mono" style={{ fontSize: 11 }}>On-chain</span><p>Top-ups and creator fees land in one wallet anyone can check.</p></div>
-              <div className="lp-tile"><strong>Pons</strong><span className="mono" style={{ fontSize: 11 }}>Launch · TBA</span><p>The contract is posted here and on X ({X_HANDLE}) on launch day. Anything earlier is not ours.</p></div>
+              {token ? (
+                <div className="lp-tile"><strong>Pons</strong><span className="mono" style={{ fontSize: 11 }}>Live · Robinhood Chain</span><p>Launched by the treasury wallet, so anyone can verify it on-chain. Updates on X ({X_HANDLE}).</p></div>
+              ) : (
+                <div className="lp-tile"><strong>Pons</strong><span className="mono" style={{ fontSize: 11 }}>Launch · TBA</span><p>The contract appears here automatically when the treasury wallet launches it, and on X ({X_HANDLE}). Anything else is not ours.</p></div>
+              )}
             </div>
-            <p style={{ marginTop: 28, fontSize: 13, color: "var(--dim)" }}>$SYNAPS will be a utility token. It is not an investment and nothing here is financial advice.</p>
+            <p style={{ marginTop: 28, fontSize: 13, color: "var(--dim)" }}>{token ? "$SYNAPS is a utility token." : "$SYNAPS will be a utility token."} It is not an investment and nothing here is financial advice.</p>
           </div>
         </section>
 

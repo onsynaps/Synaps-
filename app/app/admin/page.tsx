@@ -12,6 +12,7 @@ type Data = {
   lowCreditUsd: number;
   freeDailyLimit: number;
   burnPerDay: number;
+  token: { address: string; symbol: string; detected_at?: string } | null;
   openrouter: { ok: true; total: number | null; used: number | null; remaining: number | null; freeTier: boolean } | { ok: false; error: string };
   treasury: { address: string; ethUsd: number | null; totalUsd: number; rows: { label: string; amount: number | null; usd: number | null }[] } | null;
   alerts: { level: "critical" | "warning" | "info"; title: string; text: string }[];
@@ -152,6 +153,14 @@ export default function AdminPage() {
                 ))}
               </dl>
               <p className="adm-note">Move funds from here to OpenRouter yourself. Synaps never moves treasury funds.</p>
+              <p className="adm-note">
+                $SYNAPS:{" "}
+                {data.token ? (
+                  <a className="adm-link" href={`${CHAINS.robinhood.explorer}/token/${data.token.address}`} target="_blank" rel="noreferrer">{data.token.symbol} · {short(data.token.address)} ↗</a>
+                ) : (
+                  "not launched yet — it shows up on the homepage automatically once this wallet launches it on Pons."
+                )}
+              </p>
             </div>
 
             <div className="panel card-pad">

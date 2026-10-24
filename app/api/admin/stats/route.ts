@@ -5,6 +5,7 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { ethUsd } from "@/lib/price";
 import { robinhoodChain, USDC_BASE } from "@/lib/chains";
+import { getToken } from "@/lib/token";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -71,10 +72,11 @@ export async function GET(req: Request) {
   }
   const days = Math.min(90, Math.max(7, Number(new URL(req.url).searchParams.get("days")) || 30));
 
-  const [statsRes, or, tr] = await Promise.all([
+  const [statsRes, or, tr, token] = await Promise.all([
     db().rpc("syn_admin_stats", { p_days: days }),
     openrouter(),
     treasury().catch(() => null),
+    getToken().catch(() => null),
   ]);
   if (statsRes.error) return Response.json({ error: { message: statsRes.error.message } }, { status: 500 });
   const stats = statsRes.data as any;
@@ -115,6 +117,7 @@ export async function GET(req: Request) {
     openrouter: or,
     treasury: tr,
     burnPerDay: burn7,
+    token,
     alerts,
     stats,
   });

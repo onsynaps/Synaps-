@@ -16,7 +16,7 @@ const QA: { q: string; a: React.ReactNode }[] = [
   { q: "Why did a model reply differently from its official app?", a: <>Official apps add their own system prompts, tools and settings. Through the API you get the raw model, shaped only by the messages and parameters you send.</> },
   { q: "A model disappeared from the list.", a: <>Providers retire and rename models. The list updates automatically every few minutes; switch to the newest version of that model.</> },
   { q: "Is there an Anthropic-format endpoint?", a: <>Not yet. Synaps currently speaks the OpenAI Chat Completions format, which covers Claude models too.</> },
-  { q: "What is $SYNAPS?", a: <>A planned utility token on Pons that will give bonus credit when you top up with it. It is not live yet; the contract will be announced on the site and on <a href="https://x.com/onsynaps" target="_blank" rel="noreferrer">@onsynaps</a>.</> },
+  { q: "What is $SYNAPS?", a: <>A utility token on Pons that will give bonus credit when you top up with it. It will be launched from the Synaps treasury wallet, and the contract appears on the homepage (and at <code>/api/token</code>) automatically as soon as that happens, so anyone can verify it on-chain. Any address posted anywhere else is not ours. Updates on <a href="https://x.com/onsynaps" target="_blank" rel="noreferrer">@onsynaps</a>.</> },
   { q: "How do I get help?", a: <>Message <a href="https://x.com/onsynaps" target="_blank" rel="noreferrer">@onsynaps</a> on X. For payment issues, include the transaction hash and network.</> },
 ];
 

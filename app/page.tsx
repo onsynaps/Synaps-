@@ -1,4 +1,5 @@
 import Landing, { type CardModel, type Receipt } from "@/components/landing/Landing";
+import { getToken } from "@/lib/token";
 import { getModels, type Model } from "@/lib/models";
 import { env } from "@/lib/env";
 import { perMillion } from "@/lib/money";
@@ -28,6 +29,7 @@ function pick(models: Model[]): Model[] {
 }
 
 export default async function Page() {
+  const token = await getToken();
   let models: Model[] = [];
   try {
     models = await getModels();
@@ -53,5 +55,5 @@ export default async function Page() {
       }
     : null;
 
-  return <Landing cards={cards} receipt={receipt} markupPct={Math.round(env.markup * 100)} apiBase={env.siteUrl.replace(/\/$/, "") + "/api/v1"} />;
+  return <Landing cards={cards} receipt={receipt} markupPct={Math.round(env.markup * 100)} apiBase={env.siteUrl.replace(/\/$/, "") + "/api/v1"} token={token ? { address: token.address, symbol: token.symbol } : null} />;
 }
