@@ -44,7 +44,12 @@
 .ch-inner { width: 100%; max-width: 760px; margin: 0 auto; display: flex; flex-direction: column; gap: 22px; }
 .msg-u { align-self: flex-end; max-width: 82%; background: var(--surface-3); border-radius: 18px 18px 4px 18px; padding: 12px 16px; white-space: pre-wrap; word-break: break-word; }
 .msg-a { display: flex; gap: 12px; align-items: flex-start; }
-.msg-a .av { flex: none; width: 30px; height: 30px; border-radius: 50%; background: radial-gradient(circle, #fff, var(--violet) 55%, #3a2e8a); box-shadow: 0 0 18px rgba(165,148,255,.55); margin-top: 2px; }
+.msg-a .av { flex: none; width: 34px; height: 34px; border-radius: 50%; display: grid; place-items: center; background: #0e0c15; border: 1px solid rgba(165,148,255,.28); box-shadow: 0 0 18px rgba(165,148,255,.25); margin-top: 2px; transition: box-shadow .4s; }
+.msg-a .av .orb { width: 26px; height: 26px; }
+.msg-a .av.thinking { box-shadow: 0 0 26px rgba(165,148,255,.6); animation: avPulse 1.6s ease-in-out infinite; }
+@keyframes avPulse { 50% { box-shadow: 0 0 10px rgba(165,148,255,.25); } }
+.msg-model { font-family: var(--f-mono); font-size: 11px; letter-spacing: .12em; text-transform: uppercase; color: var(--dim); margin: 6px 0 6px; }
+@media (prefers-reduced-motion: reduce) { .msg-a .av.thinking { animation: none; } }
 .msg-a .body { min-width: 0; white-space: pre-wrap; word-break: break-word; color: #dcd9ea; line-height: 1.7; }
 .msg-meta { display: flex; gap: 14px; margin-top: 8px; font-family: var(--f-mono); font-size: 12px; color: var(--dim); font-variant-numeric: tabular-nums; }
 .caret { display: inline-block; width: 8px; height: 18px; background: var(--violet); margin-left: 3px; vertical-align: -3px; animation: blink 1s steps(1) infinite; }

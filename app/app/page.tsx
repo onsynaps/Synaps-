@@ -4,8 +4,9 @@ import { useSession } from "@/components/app/Session";
 import { fmtUsd, perMillion } from "@/lib/money";
 import type { Model } from "@/lib/models";
 import { Markdown } from "@/components/app/Markdown";
+import { OrbitMark } from "@/components/Logo";
 
-type Msg = { role: "user" | "assistant"; content: string; charged?: number; tokens?: number; error?: boolean };
+type Msg = { role: "user" | "assistant"; content: string; charged?: number; tokens?: number; error?: boolean; modelName?: string };
 type Convo = { id: string; title: string; model: string; messages: Msg[]; at: number };
 
 const STORE = "synaps.chats.v1";
@@ -84,7 +85,7 @@ export default function ChatPage() {
       history = [];
     }
     const outgoing: Msg[] = [...history, { role: "user", content }];
-    update(id, (c) => ({ ...c, model: model.id, messages: [...outgoing, { role: "assistant", content: "" }] }));
+    update(id, (c) => ({ ...c, model: model.id, messages: [...outgoing, { role: "assistant", content: "", modelName: model.name }] }));
     setInput("");
     setBusy(true);
 
@@ -228,8 +229,9 @@ export default function ChatPage() {
                   <div key={i} className="msg-u">{m.content}</div>
                 ) : (
                   <div key={i} className="msg-a">
-                    <span className="av" aria-hidden="true" />
+                    <span className={"av" + (busy && i === messages.length - 1 ? " thinking" : "")} aria-hidden="true"><OrbitMark size={30} /></span>
                     <div style={{ minWidth: 0 }}>
+                      {m.modelName && <div className="msg-model">{m.modelName}</div>}
                       <div className="body">{m.content ? <Markdown text={m.content} /> : null}{busy && i === messages.length - 1 && <span className="caret" aria-hidden="true" />}</div>
                       {m.charged !== undefined && (
                         <div className="msg-meta"><span>{m.tokens ?? 0} tokens</span><span>{m.charged ? fmtUsd(m.charged, 4) : "Free"}</span></div>
