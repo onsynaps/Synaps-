@@ -10,8 +10,7 @@ export default function Errors() {
       <h2>Error shape</h2>
       <Code lang="json" code={`{
   "error": {
-    "message": "Insufficient balance. Top up at /app/wallet.",
-    "code": 402
+    "message": "Insufficient balance. Top up at /app/wallet."
   }
 }`} />
       <p><code>message</code> is always present and safe to show to a developer. <code>code</code> is included when the error came from the model provider.</p>
