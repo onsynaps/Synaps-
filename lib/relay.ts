@@ -10,7 +10,24 @@ type RelayOpts = {
   model: Model;
   who: Who; // null = anonymous free usage
   injectSynapsEvent?: boolean; // add a final SSE event with the charge (in-app chat only)
+  fallbacks?: string[]; // other model IDs OpenRouter may try if the first one fails
 };
+
+/** Turns an OpenRouter error object into a message a person can act on. */
+export function describeError(err: any, status?: number): string {
+  const code = Number(err?.code ?? status ?? 0);
+  let raw = err?.metadata?.raw;
+  if (raw && typeof raw !== "string") {
+    try { raw = JSON.stringify(raw); } catch { raw = ""; }
+  }
+  const detail = typeof raw === "string" ? raw.replace(/\s+/g, " ").slice(0, 180) : "";
+  const providerName = err?.metadata?.provider_name ? ` (${err.metadata.provider_name})` : "";
+  if (code === 429) return `This model is busy right now${providerName}. Try again in a minute or pick another model.`;
+  if (code === 402) return "The model router is out of credit. The Synaps team has been notified; please try again later.";
+  if (code === 404 && /data policy/i.test(String(err?.message))) return "No provider for this model matches the privacy settings. Pick another model.";
+  const base = String(err?.message || "The model provider returned an error.");
+  return detail && !base.includes(detail) ? `${base}${providerName}: ${detail}` : base + providerName;
+}
 
 function chargeFor(model: Model, usage: any): { cost: number; charged: number; pt: number; ct: number } {
   const pt = Number(usage?.prompt_tokens ?? 0);
@@ -44,7 +61,7 @@ async function settle(who: Who, model: Model, usage: any) {
   return { ...c, balance };
 }
 
-export async function relay({ body, model, who, injectSynapsEvent }: RelayOpts): Promise<Response> {
+export async function relay({ body, model, who, injectSynapsEvent, fallbacks }: RelayOpts): Promise<Response> {
   const stream = Boolean(body.stream);
   const payload: Record<string, any> = {
     ...body,
@@ -54,6 +71,7 @@ export async function relay({ body, model, who, injectSynapsEvent }: RelayOpts):
   };
   if (!model.free) payload.provider = { ...(body.provider ?? {}), data_collection: "deny" };
   if (payload.max_tokens == null) payload.max_tokens = 4096;
+  if (fallbacks?.length) payload.models = [model.id, ...fallbacks.filter((f) => f !== model.id)].slice(0, 3);
 
   const upstream = await fetch("https://openrouter.ai/api/v1/chat/completions", {
     method: "POST",
@@ -68,10 +86,10 @@ export async function relay({ body, model, who, injectSynapsEvent }: RelayOpts):
 
   if (!upstream.ok || !upstream.body) {
     const text = await upstream.text().catch(() => "");
-    let message = "The model provider returned an error.";
-    try {
-      message = JSON.parse(text)?.error?.message || message;
-    } catch {}
+    let err: any = null;
+    try { err = JSON.parse(text)?.error; } catch {}
+    console.error("[relay] upstream error", upstream.status, model.id, text.slice(0, 500));
+    const message = describeError(err, upstream.status);
     return Response.json({ error: { message, code: upstream.status } }, { status: upstream.status || 502 });
   }
 
@@ -134,6 +152,12 @@ export async function relay({ body, model, who, injectSynapsEvent }: RelayOpts):
         const line = buf.slice(0, idx).trim();
         buf = buf.slice(idx + 1);
         const j = readUsage(line);
+        if (j?.error) {
+          console.error("[relay] stream error", model.id, JSON.stringify(j.error).slice(0, 500));
+          j.error.message = describeError(j.error);
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(j)}\n\n`));
+          continue;
+        }
         if (j?.usage) {
           usage = j.usage;
           if (!model.free && Number.isFinite(Number(j.usage.cost))) {

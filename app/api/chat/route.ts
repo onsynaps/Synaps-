@@ -1,5 +1,5 @@
 import { getSessionAddress } from "@/lib/session";
-import { findModel } from "@/lib/models";
+import { findModel, getModels } from "@/lib/models";
 import { getUser, takeFree, rateHit } from "@/lib/db";
 import { relay } from "@/lib/relay";
 import { env, missingEnv } from "@/lib/env";
@@ -35,9 +35,12 @@ export async function POST(req: Request) {
     if (!user || user.balance_micros < env.minBalanceMicros) return bad("Your balance is too low. Top up to keep chatting.", 402);
   }
 
+  const fallbacks = model.free ? (await getModels()).filter((m) => m.free && m.id !== model.id).map((m) => m.id) : undefined;
+
   return relay({
     body: { messages, stream: true, max_tokens: Math.min(Number(body.max_tokens) || 4096, 8192) },
     model,
+    fallbacks,
     who: address ? { address, source: "chat" } : null,
     injectSynapsEvent: true,
   });
