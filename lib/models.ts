@@ -51,21 +51,23 @@ export async function getModels(): Promise<Model[]> {
   for (const m of sorted) {
     const id: string = m.id;
     const maker = id.split("/")[0];
-    if (!MAKERS[maker]) continue;
     const free = id.endsWith(":free");
+    // paid models: only the big makers; free models: any maker, so free traffic can fall back across providers
+    if (!MAKERS[maker] && !free) continue;
+    const makerName = MAKERS[maker] || maker.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
     if (id.includes(":") && !free) continue;
     const modality: string = m.architecture?.modality ?? "text->text";
     if (!modality.endsWith("->text")) continue;
     const p = Number(m.pricing?.prompt ?? 0);
     const c = Number(m.pricing?.completion ?? 0);
     if (!free && (p < 0 || c < 0 || (p === 0 && c === 0))) continue;
-    const bucket = maker + (free ? ":free" : "");
+    const bucket = free ? "free" : maker;
     counts[bucket] = (counts[bucket] ?? 0) + 1;
-    if (counts[bucket] > PER_MAKER) continue;
+    if (counts[bucket] > (free ? 12 : PER_MAKER)) continue;
     out.push({
       id,
       name: String(m.name ?? id).replace(/^[^:]+:\s*/, ""),
-      maker: MAKERS[maker],
+      maker: makerName,
       context: Number(m.context_length ?? 0),
       listPromptPrice: p,
       listCompletionPrice: c,

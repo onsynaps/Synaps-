@@ -35,7 +35,7 @@ export async function POST(req: Request) {
     if (!user || user.balance_micros < env.minBalanceMicros) return bad("Your balance is too low. Top up to keep chatting.", 402);
   }
 
-  const fallbacks = model.free ? (await getModels()).filter((m) => m.free && m.id !== model.id).map((m) => m.id) : undefined;
+  const fallbacks = model.free ? (await getModels()).filter((m) => m.free && m.id !== model.id).sort(() => Math.random() - 0.5).map((m) => m.id) : undefined;
 
   return relay({
     body: { messages, stream: true, max_tokens: Math.min(Number(body.max_tokens) || 4096, 8192) },
