@@ -36,7 +36,7 @@ export default function Privacy() {
       <p>Top-ups are blockchain transactions. Anyone can see them on a block explorer, including the link between your wallet and the Synaps treasury.</p>
 
       <h2>Cookies and tracking</h2>
-      <p>We set one cookie to keep you signed in. There are no ads, no analytics trackers and no third-party pixels.</p>
+      <p>We set one cookie to keep you signed in. We use Vercel Web Analytics to count page views and see which pages are popular. It sets no cookies, does not track you across sites, and only collects anonymous, aggregated data such as page path, referrer, country and device type. It never sees your chats or prompts. There are no ads and no third-party pixels.</p>
 
       <h2>Your choices</h2>
       <p>Clear your chat history by deleting chats in the app or clearing your browser storage. To have your wallet&apos;s usage records deleted, message <a href="https://x.com/onsynaps" target="_blank" rel="noreferrer">@onsynaps</a> on X from a context where you can prove the wallet is yours.</p>
