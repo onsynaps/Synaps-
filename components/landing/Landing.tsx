@@ -329,7 +329,7 @@ reply = client.chat.completions.create(
       <footer className="lp-foot">
         <div className="wrap lp-foot-in">
           <Brand size={28} />
-          <nav aria-label="Footer"><a href="/app">App</a><a href="/app/models">Models</a><a href="/docs">Docs</a><a href="#token">Token</a></nav>
+          <nav aria-label="Footer"><a href="/app">App</a><a href="/app/models">Models</a><a href="/docs">Docs</a><a href="https://x.com/onsynaps" target="_blank" rel="noreferrer">X</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav>
           <span>© 2026 Synaps · Robinhood Chain</span>
         </div>
       </footer>

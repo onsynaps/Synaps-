@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Instrument_Serif } from "next/font/google";
 import "./globals.css";
+import { env } from "@/lib/env";
 
 const geist = Geist({ subsets: ["latin"], variable: "--font-geist", display: "swap" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-geist-mono", display: "swap" });
 const serif = Instrument_Serif({ subsets: ["latin"], weight: "400", style: ["normal", "italic"], variable: "--font-serif", display: "swap" });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(env.siteUrl),
   title: { default: "Synaps — Every AI model, one wallet", template: "%s · Synaps" },
   description: "Chat with or call Claude, GPT, Gemini, DeepSeek and more. Pay per message from your wallet. No subscription, no card.",
   openGraph: {
@@ -14,6 +16,7 @@ export const metadata: Metadata = {
     description: "Pay-per-message AI on Robinhood Chain. Top up from $1.",
     type: "website",
   },
+  twitter: { card: "summary_large_image", site: "@onsynaps" },
 };
 
 export const viewport: Viewport = {

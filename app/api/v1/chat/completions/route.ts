@@ -1,6 +1,6 @@
 import { authKey, spentToday } from "@/lib/apikey";
 import { findModel } from "@/lib/models";
-import { getUser } from "@/lib/db";
+import { getUser, rateHit, takeFree } from "@/lib/db";
 import { relay } from "@/lib/relay";
 import { env } from "@/lib/env";
 import { bad } from "@/lib/http";
@@ -17,6 +17,13 @@ export async function POST(req: Request) {
   if (!body || typeof body.model !== "string" || !Array.isArray(body.messages)) return bad("Send a model and messages.");
   const model = await findModel(body.model);
   if (!model) return bad(`Model "${body.model}" is not available. GET /api/v1/models lists every model.`, 404);
+
+  if (!(await rateHit("api:" + key.keyId, 60, 60))) {
+    return bad("Rate limit: 60 requests per minute per key. Slow down and retry.", 429);
+  }
+  if (model.free && !(await takeFree("key:" + key.keyId, env.freeDailyLimit * 5))) {
+    return bad(`This key used today's ${env.freeDailyLimit * 5} free-model requests. Use a paid model or try again tomorrow.`, 429);
+  }
 
   if (!model.free) {
     const user = await getUser(key.address);

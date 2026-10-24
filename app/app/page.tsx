@@ -3,6 +3,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useSession } from "@/components/app/Session";
 import { fmtUsd, perMillion } from "@/lib/money";
 import type { Model } from "@/lib/models";
+import { Markdown } from "@/components/app/Markdown";
 
 type Msg = { role: "user" | "assistant"; content: string; charged?: number; tokens?: number; error?: boolean };
 type Convo = { id: string; title: string; model: string; messages: Msg[]; at: number };
@@ -229,7 +230,7 @@ export default function ChatPage() {
                   <div key={i} className="msg-a">
                     <span className="av" aria-hidden="true" />
                     <div style={{ minWidth: 0 }}>
-                      <div className="body">{m.content}{busy && i === messages.length - 1 && <span className="caret" aria-hidden="true" />}</div>
+                      <div className="body">{m.content ? <Markdown text={m.content} /> : null}{busy && i === messages.length - 1 && <span className="caret" aria-hidden="true" />}</div>
                       {m.charged !== undefined && (
                         <div className="msg-meta"><span>{m.tokens ?? 0} tokens</span><span>{m.charged ? fmtUsd(m.charged, 4) : "Free"}</span></div>
                       )}

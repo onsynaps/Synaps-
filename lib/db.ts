@@ -48,3 +48,14 @@ export async function takeFree(ip: string, limit: number): Promise<boolean> {
   if (error) throw error;
   return Boolean(data);
 }
+
+/** Fixed-window rate limit. Returns true when allowed. Fails open if the database is unreachable. */
+export async function rateHit(bucket: string, limit: number, windowSeconds: number): Promise<boolean> {
+  try {
+    const { data, error } = await db().rpc("syn_rate_hit", { p_bucket: bucket, p_limit: limit, p_window_seconds: windowSeconds });
+    if (error) return true;
+    return Boolean(data);
+  } catch {
+    return true;
+  }
+}

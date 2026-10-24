@@ -1,6 +1,6 @@
 import { getSessionAddress } from "@/lib/session";
 import { findModel } from "@/lib/models";
-import { getUser, takeFree } from "@/lib/db";
+import { getUser, takeFree, rateHit } from "@/lib/db";
 import { relay } from "@/lib/relay";
 import { env, missingEnv } from "@/lib/env";
 import { bad, clientIp } from "@/lib/http";
@@ -21,6 +21,9 @@ export async function POST(req: Request) {
   if (!model) return bad("That model is not available.");
 
   const address = await getSessionAddress();
+  if (!(await rateHit("chat:" + (address || clientIp(req)), 30, 60))) {
+    return bad("You're sending messages too fast. Wait a few seconds and try again.", 429);
+  }
 
   if (model.free) {
     if (missingEnv().includes("SUPABASE_URL")) return bad("The database is not configured yet.", 503);

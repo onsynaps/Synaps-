@@ -1,3 +1,4 @@
+import { after } from "next/server";
 import { env } from "./env";
 import { debit, logUsage } from "./db";
 import type { Model } from "./models";
@@ -86,12 +87,40 @@ export async function relay({ body, model, who, injectSynapsEvent }: RelayOpts):
   const encoder = new TextEncoder();
   let buf = "";
   let usage: any = null;
+  let settled = false;
+  let resolveDone: () => void = () => {};
+  const done = new Promise<void>((r) => (resolveDone = r));
+  // keep the function alive until the request is billed, even if the client hangs up
+  after(() => Promise.race([done, new Promise<void>((r) => setTimeout(r, 55_000))]));
+
+  const finish = async () => {
+    if (settled) return null;
+    settled = true;
+    try {
+      return await settle(who, model, usage);
+    } catch {
+      return null;
+    } finally {
+      resolveDone();
+    }
+  };
+
+  const readUsage = (line: string): any | null => {
+    if (!line.startsWith("data:")) return null;
+    const data = line.slice(5).trim();
+    if (!data || data === "[DONE]") return null;
+    try {
+      return JSON.parse(data);
+    } catch {
+      return null;
+    }
+  };
 
   const out = new ReadableStream<Uint8Array>({
     async pull(controller) {
-      const { value, done } = await reader.read();
-      if (done) {
-        const s = await settle(who, model, usage).catch(() => null);
+      const { value, done: ended } = await reader.read();
+      if (ended) {
+        const s = await finish();
         if (injectSynapsEvent && s) {
           const ev = { synaps: { charged_micros: s.charged, balance_micros: s.balance, prompt_tokens: s.pt, completion_tokens: s.ct } };
           controller.enqueue(encoder.encode(`data: ${JSON.stringify(ev)}\n\n`));
@@ -104,28 +133,36 @@ export async function relay({ body, model, who, injectSynapsEvent }: RelayOpts):
       while ((idx = buf.indexOf("\n")) >= 0) {
         const line = buf.slice(0, idx).trim();
         buf = buf.slice(idx + 1);
-        if (line.startsWith("data:")) {
-          const data = line.slice(5).trim();
-          if (data && data !== "[DONE]") {
-            try {
-              const j = JSON.parse(data);
-              if (j.usage) {
-                usage = j.usage;
-                if (!model.free && Number.isFinite(Number(j.usage.cost))) {
-                  // report the price the customer pays, not our cost
-                  j.usage.cost = Number(j.usage.cost) * (1 + env.markup);
-                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(j)}\n\n`));
-                  continue;
-                }
-              }
-            } catch {}
+        const j = readUsage(line);
+        if (j?.usage) {
+          usage = j.usage;
+          if (!model.free && Number.isFinite(Number(j.usage.cost))) {
+            // report the price the customer pays, not our cost
+            j.usage.cost = Number(j.usage.cost) * (1 + env.markup);
+            controller.enqueue(encoder.encode(`data: ${JSON.stringify(j)}\n\n`));
+            continue;
           }
         }
         controller.enqueue(encoder.encode(line + "\n"));
       }
     },
-    cancel() {
-      reader.cancel().catch(() => {});
+    async cancel() {
+      // The client stopped reading. The provider keeps generating and bills us,
+      // so drain the rest of the stream to get the final usage, then charge it.
+      try {
+        for (;;) {
+          const { value, done: ended } = await reader.read();
+          if (ended) break;
+          buf += decoder.decode(value, { stream: true });
+          let idx: number;
+          while ((idx = buf.indexOf("\n")) >= 0) {
+            const j = readUsage(buf.slice(0, idx).trim());
+            buf = buf.slice(idx + 1);
+            if (j?.usage) usage = j.usage;
+          }
+        }
+      } catch {}
+      await finish();
     },
   });
 
