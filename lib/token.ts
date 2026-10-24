@@ -22,7 +22,7 @@ const PONS_FACTORIES = [
 const CHECK_EVERY_MS = 2 * 60 * 1000;
 const SYMBOL_OK = /synaps/i;
 
-export type TokenInfo = { address: string; symbol: string; name: string; decimals?: number; pool?: string | null; pairToken?: string | null; txHash?: string | null; block?: number | null; detected_at?: string };
+export type TokenInfo = { address: string; symbol: string; name: string; decimals?: number; pool?: string | null; pairToken?: string | null; curve?: string | null; txHash?: string | null; block?: number | null; detected_at?: string };
 
 const client = () => createPublicClient({ chain: robinhoodChain, transport: http(env.rhRpc, { timeout: 8000 }) });
 
@@ -109,7 +109,7 @@ async function viaTreasuryTxs(treasuryTopic: string): Promise<TokenInfo | null> 
     if (!l || l.deployer !== treasury || l.sender !== treasury) continue;
     const meta = await readMeta(l.token);
     if (!meta || !SYMBOL_OK.test(meta.symbol)) continue;
-    return { address: l.token, ...meta, pool: l.pool, pairToken: l.pairToken, txHash: l.txHash, block: l.block };
+    return { address: l.token, ...meta, pool: l.pool, pairToken: l.pairToken, curve: l.curve, txHash: l.txHash, block: l.block };
   }
   return null;
 }
@@ -157,7 +157,7 @@ export async function getToken(): Promise<TokenInfo | null> {
       const addr = getAddress(manual);
       const key = "token_manual:" + addr.toLowerCase();
       const cached = env.supabaseUrl ? await getConfig<TokenInfo>(key).catch(() => null) : null;
-      if (cached?.address && (cached.pool || Date.now() - new Date(cached.detected_at || 0).getTime() < 5 * 60 * 1000)) return cached;
+      if (cached?.address && (cached.pool || cached.curve || Date.now() - new Date(cached.detected_at || 0).getTime() < 5 * 60 * 1000)) return cached;
       const [meta, launch] = await Promise.all([readMeta(manual).catch(() => null), findLaunch(addr).catch(() => null)]);
       const poolEnv = process.env.SYNAPS_POOL_ADDRESS;
       const row: TokenInfo = {
@@ -167,6 +167,7 @@ export async function getToken(): Promise<TokenInfo | null> {
         decimals: meta?.decimals ?? 18,
         pool: poolEnv && /^0x[0-9a-fA-F]{40}$/.test(poolEnv) ? getAddress(poolEnv) : launch?.pool ?? null,
         pairToken: launch?.pairToken ?? null,
+        curve: launch?.curve ?? null,
         txHash: launch?.txHash ?? null,
         block: launch?.block ?? null,
         detected_at: new Date().toISOString(),

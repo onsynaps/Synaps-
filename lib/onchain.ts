@@ -13,6 +13,8 @@ export const PONS_FACTORIES = [
   "0x0c37a24f5d23a486fa692d1500881d698b1f77a4",
   "0x1f7d7550b1b028f7571e69a784071f0205fd2efa",
 ];
+export const TRANSFER = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
+export const ZERO = "0x0000000000000000000000000000000000000000";
 export const pad = (a: string) => ("0x" + "0".repeat(24) + a.toLowerCase().replace(/^0x/, "")) as `0x${string}`;
 
 export type Transfer = { hash: string; from: string; to: string; value: bigint; block: number };
@@ -79,7 +81,7 @@ export async function assetTransfers(p: {
   throw new Error("No transfer index available.");
 }
 
-export type Launch = { txHash: string; block: number; pool: string | null; pairToken: string | null; deployer: string | null; sender: string | null };
+export type Launch = { txHash: string; block: number; pool: string | null; pairToken: string | null; curve: string | null; deployer: string | null; sender: string | null };
 
 /** Reads the Pons TokenLaunched event for `token` out of a transaction receipt. */
 export async function launchFromTx(hash: string, token?: string): Promise<(Launch & { token: string }) | null> {
@@ -89,6 +91,22 @@ export async function launchFromTx(hash: string, token?: string): Promise<(Launc
     c.getTransaction({ hash: hash as `0x${string}` }).catch(() => null),
   ]);
   if (!receipt) return null;
+  const sender = tx?.from?.toLowerCase() ?? null;
+  const launcher = (tx?.to ?? receipt.to ?? "").toLowerCase();
+  // Pons v2 (bonding curve): the launcher emits (sig, token, curve, creator)
+  for (const log of receipt.logs) {
+    if (log.address.toLowerCase() !== launcher) continue;
+    const t = log.topics.map((x) => String(x).toLowerCase());
+    if (t.length < 4) continue;
+    const tk = "0x" + t[1].slice(26);
+    if (token && tk !== token.toLowerCase()) continue;
+    const creator = "0x" + t[3].slice(26);
+    if (sender && creator !== sender) continue;
+    // the token must really have been minted in this tx
+    const minted = receipt.logs.some((l) => l.address.toLowerCase() === tk && String(l.topics[0]).toLowerCase() === TRANSFER && String(l.topics[1]).toLowerCase() === pad(ZERO));
+    if (!minted) continue;
+    return { token: getAddress(tk), txHash: hash, block: Number(receipt.blockNumber), pool: null, pairToken: null, curve: getAddress("0x" + t[2].slice(26)), deployer: creator, sender };
+  }
   for (const log of receipt.logs) {
     if (!PONS_FACTORIES.includes(log.address.toLowerCase())) continue;
     const t = log.topics.map((x) => String(x).toLowerCase());
@@ -104,6 +122,7 @@ export async function launchFromTx(hash: string, token?: string): Promise<(Launc
       block: Number(receipt.blockNumber),
       pairToken: ok(word(0)),
       pool: ok(word(1)),
+      curve: null,
       deployer: "0x" + t[2].slice(26),
       sender: tx?.from?.toLowerCase() ?? null,
     };
@@ -134,4 +153,42 @@ export async function findLaunch(token: string): Promise<Launch | null> {
     }
   } catch {}
   return null;
+}
+
+/**
+ * $SYNAPS price in ETH from its latest bonding-curve trades. Each trade log from the curve carries the
+ * ETH amount and the token amount; the token amount is matched against the Transfer in the same tx so the
+ * layout is never guessed. Returns ETH per whole token for each recent trade, newest first.
+ */
+export async function curveTradePrices(token: string, curve: string, decimals = 18, max = 8): Promise<number[]> {
+  const [outs, ins] = await Promise.all([
+    assetTransfers({ from: curve, contract: token, categories: ["erc20"], order: "desc", max: 12 }).catch(() => [] as Transfer[]),
+    assetTransfers({ to: curve, contract: token, categories: ["erc20"], order: "desc", max: 12 }).catch(() => [] as Transfer[]),
+  ]);
+  const hashes = [...new Map([...outs, ...ins].sort((a, b) => b.block - a.block).map((t) => [t.hash, t])).values()].slice(0, max);
+  const c = rh();
+  const cv = curve.toLowerCase(), tk = token.toLowerCase();
+  const prices: number[] = [];
+  for (const t of hashes) {
+    const rc = await c.getTransactionReceipt({ hash: t.hash as `0x${string}` }).catch(() => null);
+    if (!rc) continue;
+    const amounts = new Set(
+      rc.logs
+        .filter((l) => l.address.toLowerCase() === tk && String(l.topics[0]).toLowerCase() === TRANSFER && (String(l.topics[1]).toLowerCase() === pad(cv) || String(l.topics[2]).toLowerCase() === pad(cv)))
+        .map((l) => BigInt(l.data || "0x0").toString()),
+    );
+    for (const l of rc.logs) {
+      if (l.address.toLowerCase() !== cv) continue;
+      const hex = (l.data || "").replace(/^0x/, "");
+      if (hex.length < 128) continue;
+      const w0 = BigInt("0x" + hex.slice(0, 64)), w1 = BigInt("0x" + hex.slice(64, 128));
+      let eth: bigint | null = null, tok: bigint | null = null;
+      if (amounts.has(w1.toString())) { eth = w0; tok = w1; }
+      else if (amounts.has(w0.toString())) { eth = w1; tok = w0; }
+      if (!eth || !tok) continue;
+      const p = (Number(eth) / 1e18) / (Number(tok) / 10 ** decimals);
+      if (Number.isFinite(p) && p > 0) { prices.push(p); break; }
+    }
+  }
+  return prices;
 }

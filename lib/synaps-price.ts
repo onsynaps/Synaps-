@@ -3,6 +3,7 @@ import { env } from "./env";
 import { robinhoodChain } from "./chains";
 import { ethUsd } from "./price";
 import type { TokenInfo } from "./token";
+import { curveTradePrices } from "./onchain";
 
 /**
  * $SYNAPS → USD from its Pons pool (Uniswap v3 style).
@@ -22,7 +23,24 @@ export type SynapsPrice = { usd: number; spotUsd: number; twapUsd: number | null
 
 const priceFromTick = (tick: number, dec0: number, dec1: number) => Math.pow(1.0001, tick) * Math.pow(10, dec0 - dec1); // token1 per token0
 
+/** Still on the Pons bonding curve: the LOWEST of the last few trade prices, so one pump trade buys no extra credit. */
+async function curveUsd(token: TokenInfo): Promise<SynapsPrice | null> {
+  const key = token.address + (token.curve ?? "");
+  if (cache && cache.key === key && Date.now() - cache.at < 30_000) return cache.v;
+  const dec = token.decimals ?? 18;
+  const prices = await curveTradePrices(token.address, token.curve!, dec);
+  if (!prices.length) return null;
+  const eth = await ethUsd();
+  const spotUsd = prices[0] * eth;
+  const usd = Math.min(...prices) * eth;
+  if (!Number.isFinite(usd) || usd <= 0) return null;
+  const v = { usd, spotUsd, twapUsd: null, decimals: dec, pairSymbol: "ETH" };
+  cache = { at: Date.now(), key, v };
+  return v;
+}
+
 export async function synapsUsd(token: TokenInfo): Promise<SynapsPrice | null> {
+  if (!token.pool && token.curve) return curveUsd(token);
   if (!token.pool) return null;
   const key = token.address + token.pool;
   if (cache && cache.key === key && Date.now() - cache.at < 30_000) return cache.v;
