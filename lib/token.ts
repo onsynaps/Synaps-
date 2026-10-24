@@ -21,7 +21,7 @@ const PONS_FACTORIES = [
 const CHECK_EVERY_MS = 2 * 60 * 1000;
 const SYMBOL_OK = /synaps/i;
 
-export type TokenInfo = { address: string; symbol: string; name: string; txHash?: string | null; block?: number | null; detected_at?: string };
+export type TokenInfo = { address: string; symbol: string; name: string; decimals?: number; pool?: string | null; pairToken?: string | null; txHash?: string | null; block?: number | null; detected_at?: string };
 
 const client = () => createPublicClient({ chain: robinhoodChain, transport: http(env.rhRpc, { timeout: 8000 }) });
 
@@ -33,18 +33,27 @@ async function setConfig(key: string, value: unknown) {
   await db().from("syn_config").upsert({ key, value, updated_at: new Date().toISOString() });
 }
 
-async function readMeta(address: string): Promise<{ symbol: string; name: string } | null> {
+async function readMeta(address: string): Promise<{ symbol: string; name: string; decimals: number } | null> {
   const c = client();
   const a = getAddress(address);
-  const [symbol, name] = await Promise.all([
+  const [symbol, name, decimals] = await Promise.all([
     c.readContract({ address: a, abi: erc20Abi, functionName: "symbol" }).catch(() => null),
     c.readContract({ address: a, abi: erc20Abi, functionName: "name" }).catch(() => null),
+    c.readContract({ address: a, abi: erc20Abi, functionName: "decimals" }).catch(() => 18),
   ]);
   if (typeof symbol !== "string") return null;
-  return { symbol, name: typeof name === "string" ? name : symbol };
+  return { symbol, name: typeof name === "string" ? name : symbol, decimals: Number(decimals) };
 }
 
-type RawLog = { address: string; topics: string[]; transactionHash?: string; blockNumber?: string };
+/** TokenLaunched data starts with (address pairToken, address pool, ...). */
+function launchWords(data?: string): { pairToken: string | null; pool: string | null } {
+  const hex = (data || "").replace(/^0x/, "");
+  const word = (i: number) => (hex.length >= (i + 1) * 64 ? "0x" + hex.slice(i * 64 + 24, (i + 1) * 64) : null);
+  const ok = (a: string | null) => (a && !/^0x0{40}$/.test(a) ? getAddress(a) : null);
+  return { pairToken: ok(word(0)), pool: ok(word(1)) };
+}
+
+type RawLog = { address: string; topics: string[]; data?: string; transactionHash?: string; blockNumber?: string };
 
 /** Keeps only logs that really are a Pons launch by the treasury, then returns the first SYNAPS token. */
 async function pickToken(logs: RawLog[], treasuryTopic: string): Promise<TokenInfo | null> {
@@ -60,7 +69,7 @@ async function pickToken(logs: RawLog[], treasuryTopic: string): Promise<TokenIn
     const meta = await readMeta(token);
     if (!meta || !SYMBOL_OK.test(meta.symbol)) continue;
     const block = log.blockNumber ? Number(log.blockNumber) : null;
-    return { address: getAddress(token), ...meta, txHash: log.transactionHash ?? null, block: Number.isFinite(block) ? block : null };
+    return { address: getAddress(token), ...meta, ...launchWords(log.data), txHash: log.transactionHash ?? null, block: Number.isFinite(block) ? block : null };
   }
   return null;
 }
@@ -128,7 +137,8 @@ export async function getToken(): Promise<TokenInfo | null> {
     const manual = process.env.SYNAPS_TOKEN_ADDRESS;
     if (manual && /^0x[0-9a-fA-F]{40}$/.test(manual)) {
       const meta = await readMeta(manual).catch(() => null);
-      return { address: getAddress(manual), symbol: meta?.symbol ?? "SYNAPS", name: meta?.name ?? "Synaps" };
+      const pool = process.env.SYNAPS_POOL_ADDRESS;
+      return { address: getAddress(manual), symbol: meta?.symbol ?? "SYNAPS", name: meta?.name ?? "Synaps", decimals: meta?.decimals ?? 18, pool: pool && /^0x[0-9a-fA-F]{40}$/.test(pool) ? getAddress(pool) : null };
     }
     if (!env.treasury || !env.supabaseUrl) return null;
 

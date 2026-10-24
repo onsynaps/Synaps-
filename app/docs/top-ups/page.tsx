@@ -45,7 +45,15 @@ export default function TopUps() {
       <Callout kind="warn" title="Double-check the network">On-chain payments cannot be reversed. Sending a token Synaps does not support, or sending on the wrong network, cannot be recovered. Always top up from the Wallet page rather than sending by hand.</Callout>
 
       <h2>Paying with $SYNAPS</h2>
-      <p>Once the $SYNAPS token launches on Pons, you will be able to top up with it and receive bonus credit. The contract and bonus rate will be announced on the site and on <a href="https://x.com/onsynaps" target="_blank" rel="noreferrer">@onsynaps</a>. Any token using the name before that is not ours.</p>
+      <p>
+        Once $SYNAPS is live, a <strong>$SYNAPS</strong> option appears on the Wallet page. Topping up with it gives you bonus credit on top of the value of the tokens you send. The current bonus is shown next to the option.
+      </p>
+      <ul>
+        <li><strong>Network:</strong> Robinhood Chain. The token is launched on Pons from the Synaps treasury wallet, and its contract is shown on the homepage and at <code>/api/token</code>.</li>
+        <li><strong>Price:</strong> taken from the token&apos;s Pons pool when your top-up is verified. Synaps uses the lower of the current price and the 5-minute average, so short price spikes don&apos;t change what you get.</li>
+        <li><strong>Bonus:</strong> a percentage of the top-up value, applied up to a cap per top-up. Both are shown on the Wallet page before you pay.</li>
+      </ul>
+      <Callout kind="note" title="Only the official contract counts">Tokens sent from any other contract, even one called SYNAPS, are not credited and cannot be returned.</Callout>
 
       <Pager prev={{ href: "/docs/billing", label: "Billing & pricing" }} next={{ href: "/docs/rate-limits", label: "Rate limits" }} />
     </article>

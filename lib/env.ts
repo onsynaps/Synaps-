@@ -16,6 +16,9 @@ export const env = {
     .split(",").map((a) => a.trim().toLowerCase()).filter(Boolean),
   // warn in the admin dashboard when OpenRouter credit drops below this
   lowCreditUsd: Number(process.env.LOW_CREDIT_USD ?? "5"),
+  // extra credit for paying with $SYNAPS (0.1 = +10%), and the top-up size the bonus applies to
+  synapsBonus: Math.max(0, Math.min(1, Number(process.env.SYNAPS_BONUS ?? "0.1"))),
+  synapsBonusCapUsd: Number(process.env.SYNAPS_BONUS_CAP_USD ?? "500"),
 };
 
 export function missingEnv(): string[] {

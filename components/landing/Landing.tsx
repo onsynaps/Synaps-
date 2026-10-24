@@ -31,7 +31,7 @@ function ctx(n: number) {
 
 const STATEMENT = "Every model you need, behind one balance in your wallet. You pay for the messages you send, and";
 
-export default function Landing({ cards, receipt, markupPct, apiBase, token }: { cards: CardModel[]; receipt: Receipt; markupPct: number; apiBase: string; token?: { address: string; symbol: string } | null }) {
+export default function Landing({ cards, receipt, markupPct, apiBase, token }: { cards: CardModel[]; receipt: Receipt; markupPct: number; apiBase: string; token?: { address: string; symbol: string; bonusPct?: number } | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -326,7 +326,7 @@ reply = client.chat.completions.create(
               <p style={{ margin: "28px auto 56px", maxWidth: "38ch", color: "var(--muted)", fontSize: 19, fontWeight: 300 }}>Coming on Pons. Synaps works today with ETH and USDC; the token will make your balance go further.</p>
             )}
             <div className="lp-tiles">
-              <div className="lp-tile"><strong>Bonus credit</strong><span className="mono" style={{ fontSize: 11 }}>Pay with $SYNAPS</span><p>Top up with the token and get more credit for the same amount. Rate announced at launch.</p></div>
+              <div className="lp-tile"><strong>Bonus credit</strong><span className="mono" style={{ fontSize: 11 }}>Pay with $SYNAPS</span><p>{token?.bonusPct ? `Top up with the token and get +${token.bonusPct}% extra credit, on the Wallet page.` : "Top up with the token and get more credit for the same amount. Rate announced at launch."}</p></div>
               <div className="lp-tile"><strong>Public treasury</strong><span className="mono" style={{ fontSize: 11 }}>On-chain</span><p>Top-ups and creator fees land in one wallet anyone can check.</p></div>
               {token ? (
                 <div className="lp-tile"><strong>Pons</strong><span className="mono" style={{ fontSize: 11 }}>Live · Robinhood Chain</span><p>Launched by the treasury wallet, so anyone can verify it on-chain. Updates on X ({X_HANDLE}).</p></div>

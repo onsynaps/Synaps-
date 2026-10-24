@@ -8,7 +8,8 @@ import { sendTopup } from "@/lib/wallet";
 type Usage = { id: number; source: string; model: string; completion_tokens: number; charged_micros: number; created_at: string };
 type Topup = { tx_hash: string; chain: ChainKey; asset: string; usd_micros: number; created_at: string };
 
-const OPTIONS: { chain: ChainKey; asset: "ETH" | "USDC"; label: string; note: string }[] = [
+type Opt = { chain: ChainKey; asset: "ETH" | "USDC" | "SYNAPS"; label: string; note: string };
+const OPTIONS: Opt[] = [
   { chain: "robinhood", asset: "ETH", label: "ETH", note: "Robinhood Chain" },
   { chain: "base", asset: "ETH", label: "ETH", note: "Base" },
   { chain: "base", asset: "USDC", label: "USDC", note: "Base" },
@@ -20,6 +21,13 @@ const time = (s: string) => new Date(s).toLocaleString(undefined, { month: "shor
 export default function WalletPage() {
   const { me, signIn, refresh, getProvider } = useSession();
   const [opt, setOpt] = useState(0);
+  const [synaps, setSynaps] = useState<{ address: string; usd: number; decimals: number; bonus: number; bonus_cap_usd: number } | null>(null);
+  useEffect(() => {
+    fetch("/api/price", { cache: "no-store" }).then((r) => r.json()).then((j) => setSynaps(j?.synaps ?? null)).catch(() => {});
+  }, []);
+  const options: Opt[] = synaps
+    ? [{ chain: "robinhood", asset: "SYNAPS", label: "$SYNAPS", note: `Robinhood Chain · +${Math.round(synaps.bonus * 100)}% bonus` }, ...OPTIONS]
+    : OPTIONS;
   const [amount, setAmount] = useState(5);
   const [custom, setCustom] = useState("");
   const [status, setStatus] = useState<{ kind: "ok" | "err" | "info"; text: string } | null>(null);
@@ -34,7 +42,7 @@ export default function WalletPage() {
   useEffect(() => { if (me?.address) load(); }, [me?.address, load]);
 
   const usd = custom ? Number(custom) : amount;
-  const o = OPTIONS[opt];
+  const o = options[Math.min(opt, options.length - 1)];
 
   async function verify(hash: string, chain: ChainKey) {
     setStatus({ kind: "info", text: "Waiting for the network to confirm your transaction…" });
@@ -42,7 +50,7 @@ export default function WalletPage() {
       const r = await fetch("/api/topup", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ txHash: hash, chain }) });
       const j = await r.json().catch(() => ({}));
       if (r.ok) {
-        setStatus({ kind: "ok", text: `Added ${fmtUsd(j.credited_micros)} to your balance.` });
+        setStatus({ kind: "ok", text: j.bonus_micros ? `Added ${fmtUsd(j.credited_micros)} to your balance, including a ${fmtUsd(j.bonus_micros)} $SYNAPS bonus.` : `Added ${fmtUsd(j.credited_micros)} to your balance.` });
         setPending(null);
         await refresh();
         await load();
@@ -73,7 +81,14 @@ export default function WalletPage() {
       }
       setStatus({ kind: "info", text: "Confirm the payment in your wallet…" });
       const eth = await getProvider();
-      const hash = await sendTopup(eth, { chain: o.chain, asset: o.asset, usd, ethUsd, from: me.address, treasury: me.treasury });
+      let syn = synaps;
+      if (o.asset === "SYNAPS") {
+        const p = await fetch("/api/price", { cache: "no-store" }).then((r) => r.json());
+        syn = p?.synaps ?? null;
+        if (!syn) throw new Error("Could not load the $SYNAPS price. Try again.");
+        setSynaps(syn);
+      }
+      const hash = await sendTopup(eth, { chain: o.chain, asset: o.asset, usd, ethUsd, from: me.address, treasury: me.treasury, synaps: syn ?? undefined });
       setPending({ hash, chain: o.chain });
       await verify(hash, o.chain);
     } catch (e: any) {
@@ -114,7 +129,7 @@ export default function WalletPage() {
           <div className="field">
             <span className="label">Pay with</span>
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(140px, 1fr))", gap: 10 }} role="radiogroup" aria-label="Payment asset">
-              {OPTIONS.map((x, i) => (
+              {options.map((x, i) => (
                 <button key={i} role="radio" aria-checked={opt === i} onClick={() => setOpt(i)} style={{ textAlign: "left", padding: 14, borderRadius: 14, cursor: "pointer", border: `1px solid ${opt === i ? "var(--violet)" : "var(--line)"}`, background: opt === i ? "rgba(165,148,255,.1)" : "#0a0910", color: "var(--fg)", display: "flex", flexDirection: "column", gap: 2 }}>
                   <span style={{ fontWeight: 600 }}>{x.label}</span>
                   <span style={{ fontSize: 12, color: "var(--muted)" }}>{x.note}</span>
@@ -135,7 +150,10 @@ export default function WalletPage() {
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 14, flexWrap: "wrap", borderTop: "1px solid var(--line)", paddingTop: 16 }}>
             <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
               <span className="label">You get</span>
-              <span className="num" style={{ fontSize: 22 }}>{Number.isFinite(usd) && usd > 0 ? `$${usd.toFixed(2)} credit` : "—"}</span>
+              <span className="num" style={{ fontSize: 22 }}>{Number.isFinite(usd) && usd > 0 ? `$${(usd + (o.asset === "SYNAPS" && synaps ? Math.min(usd, synaps.bonus_cap_usd) * synaps.bonus : 0)).toFixed(2)} credit` : "—"}</span>
+              {o.asset === "SYNAPS" && synaps && Number.isFinite(usd) && usd > 0 && (
+                <span style={{ fontSize: 12, color: "var(--violet)" }}>≈ {(usd / synaps.usd).toLocaleString(undefined, { maximumFractionDigits: 2 })} $SYNAPS · includes +{Math.round(synaps.bonus * 100)}% bonus</span>
+              )}
               <span style={{ fontSize: 12, color: "var(--dim)" }}>Sent to the Synaps treasury on {CHAINS[o.chain].name}</span>
             </div>
             <button className="btn btn-violet" onClick={topUp} disabled={busy}>{busy ? "Working…" : "Pay in wallet"}</button>

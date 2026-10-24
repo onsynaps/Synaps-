@@ -46,11 +46,24 @@ export async function switchChain(eth: Eth, key: ChainKey) {
   }
 }
 
-export async function sendTopup(eth: Eth, opts: { chain: ChainKey; asset: "ETH" | "USDC"; usd: number; ethUsd: number; from: string; treasury: string }): Promise<string> {
+export async function sendTopup(eth: Eth, opts: { chain: ChainKey; asset: "ETH" | "USDC" | "SYNAPS"; usd: number; ethUsd: number; from: string; treasury: string; synaps?: { address: string; usd: number; decimals: number } }): Promise<string> {
   await switchChain(eth, opts.chain);
   if (opts.asset === "ETH") {
     const wei = BigInt(Math.floor((opts.usd / opts.ethUsd) * 1e18));
     return eth.request({ method: "eth_sendTransaction", params: [{ from: opts.from, to: opts.treasury, value: "0x" + wei.toString(16) }] });
+  }
+  if (opts.asset === "SYNAPS") {
+    if (!opts.synaps) throw new Error("$SYNAPS price is not available.");
+    // whole tokens, then to base units with integer math to avoid float overflow on 18 decimals
+    const tokens = opts.usd / opts.synaps.usd;
+    const [w, f = ""] = tokens.toFixed(6).split(".");
+    const units = BigInt(w) * 10n ** BigInt(opts.synaps.decimals) + (BigInt(f.padEnd(6, "0")) * 10n ** BigInt(opts.synaps.decimals)) / 1_000_000n;
+    const data = encodeFunctionData({
+      abi: parseAbi(["function transfer(address to, uint256 value) returns (bool)"]),
+      functionName: "transfer",
+      args: [opts.treasury as `0x${string}`, units],
+    });
+    return eth.request({ method: "eth_sendTransaction", params: [{ from: opts.from, to: opts.synaps.address, data }] });
   }
   const amount = BigInt(Math.round(opts.usd * 1e6));
   const data = encodeFunctionData({

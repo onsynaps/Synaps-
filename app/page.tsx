@@ -55,5 +55,5 @@ export default async function Page() {
       }
     : null;
 
-  return <Landing cards={cards} receipt={receipt} markupPct={Math.round(env.markup * 100)} apiBase={env.siteUrl.replace(/\/$/, "") + "/api/v1"} token={token ? { address: token.address, symbol: token.symbol } : null} />;
+  return <Landing cards={cards} receipt={receipt} markupPct={Math.round(env.markup * 100)} apiBase={env.siteUrl.replace(/\/$/, "") + "/api/v1"} token={token ? { address: token.address, symbol: token.symbol, bonusPct: Math.round(env.synapsBonus * 100) } : null} />;
 }

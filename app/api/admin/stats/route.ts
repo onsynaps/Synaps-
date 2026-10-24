@@ -5,7 +5,8 @@ import { db } from "@/lib/db";
 import { env } from "@/lib/env";
 import { ethUsd } from "@/lib/price";
 import { robinhoodChain, USDC_BASE } from "@/lib/chains";
-import { getToken } from "@/lib/token";
+import { getToken, type TokenInfo } from "@/lib/token";
+import { synapsUsd } from "@/lib/synaps-price";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -41,7 +42,7 @@ async function openrouter() {
 }
 
 /** What's sitting in the treasury wallet, in USD, so the owner knows what can be moved to OpenRouter. */
-async function treasury() {
+async function treasury(token: TokenInfo | null) {
   if (!env.treasury) return null;
   const addr = env.treasury as `0x${string}`;
   const baseClient = createPublicClient({ chain: base, transport: http(env.baseRpc) });
@@ -61,6 +62,14 @@ async function treasury() {
     row("ETH · Base", eb, eb != null && price ? eb * price : null),
     row("USDC · Base", uc, uc),
   ];
+  if (token) {
+    const [bal, price] = await Promise.all([
+      rhClient.readContract({ address: token.address as `0x${string}`, abi: erc20Abi, functionName: "balanceOf", args: [addr] }).catch(() => null),
+      synapsUsd(token).catch(() => null),
+    ]);
+    const amt = bal == null ? null : Number(formatUnits(bal as bigint, token.decimals ?? 18));
+    rows.push(row("$SYNAPS · Robinhood Chain", amt, amt != null && price ? amt * price.usd : null));
+  }
   const total = rows.reduce((s, r) => s + (r.usd ?? 0), 0);
   return { address: env.treasury, ethUsd: price, rows, totalUsd: total };
 }
@@ -72,11 +81,11 @@ export async function GET(req: Request) {
   }
   const days = Math.min(90, Math.max(7, Number(new URL(req.url).searchParams.get("days")) || 30));
 
-  const [statsRes, or, tr, token] = await Promise.all([
+  const token = await getToken().catch(() => null);
+  const [statsRes, or, tr] = await Promise.all([
     db().rpc("syn_admin_stats", { p_days: days }),
     openrouter(),
-    treasury().catch(() => null),
-    getToken().catch(() => null),
+    treasury(token).catch(() => null),
   ]);
   if (statsRes.error) return Response.json({ error: { message: statsRes.error.message } }, { status: 500 });
   const stats = statsRes.data as any;

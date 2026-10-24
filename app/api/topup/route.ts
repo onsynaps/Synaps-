@@ -5,6 +5,8 @@ import { env } from "@/lib/env";
 import { CHAINS, USDC_BASE, type ChainKey } from "@/lib/chains";
 import { ethUsd } from "@/lib/price";
 import { bad } from "@/lib/http";
+import { getToken } from "@/lib/token";
+import { synapsUsd, bonusFor } from "@/lib/synaps-price";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -36,6 +38,8 @@ export async function POST(req: Request) {
   let asset = "ETH";
   let amountRaw = 0n;
   let usdMicros = 0;
+  let bonusMicros = 0;
+  const token = chain === "robinhood" ? await getToken() : null;
 
   if (tx.to?.toLowerCase() === env.treasury && tx.value > 0n) {
     amountRaw = tx.value;
@@ -51,23 +55,40 @@ export async function POST(req: Request) {
       } catch {}
     }
     usdMicros = Number(amountRaw); // USDC has 6 decimals, same as micros
+  } else if (token && tx.to?.toLowerCase() === token.address.toLowerCase()) {
+    asset = "SYNAPS";
+    for (const log of receipt.logs) {
+      if (log.address.toLowerCase() !== token.address.toLowerCase()) continue;
+      try {
+        const ev = decodeEventLog({ abi: [transferEvent], data: log.data, topics: log.topics });
+        if (ev.args.from.toLowerCase() === address && ev.args.to.toLowerCase() === env.treasury) amountRaw += ev.args.value;
+      } catch {}
+    }
+    let price;
+    try {
+      price = await synapsUsd(token);
+    } catch {}
+    if (!price) return bad("Could not price $SYNAPS right now. Your tokens are safe; press Check again in a minute.", 409);
+    usdMicros = Math.floor((Number(amountRaw) / 10 ** price.decimals) * price.usd * 1e6);
+    bonusMicros = bonusFor(usdMicros);
   } else {
     return bad(`This transaction did not pay the Synaps treasury on ${c.name}.`);
   }
 
   if (usdMicros < 500_000) return bad("Top-ups start at $0.50.");
 
-  const { data: credited, error } = await db().rpc("syn_apply_topup", {
+  const { data: credited, error } = await db().rpc("syn_apply_topup_bonus", {
     p_tx: txHash,
     p_chain: chain,
     p_address: address,
     p_asset: asset,
     p_amount_raw: amountRaw.toString(),
     p_usd: usdMicros,
+    p_bonus: bonusMicros,
   });
   if (error) return bad("Could not credit this top-up. Contact support with your transaction hash.", 500);
   if (!credited) return bad("This transaction was already credited.", 409);
 
   const { data: user } = await db().from("syn_users").select("balance_micros").eq("address", address).single();
-  return Response.json({ credited_micros: usdMicros, balance_micros: user?.balance_micros ?? 0 });
+  return Response.json({ credited_micros: usdMicros + bonusMicros, bonus_micros: bonusMicros, balance_micros: user?.balance_micros ?? 0 });
 }
