@@ -1,0 +1,139 @@
+import { env } from "./env";
+import { debit, logUsage } from "./db";
+import type { Model } from "./models";
+
+type Who = { address: string; keyId?: string | null; source: "chat" | "api" } | null;
+
+type RelayOpts = {
+  body: Record<string, any>;
+  model: Model;
+  who: Who; // null = anonymous free usage
+  injectSynapsEvent?: boolean; // add a final SSE event with the charge (in-app chat only)
+};
+
+function chargeFor(model: Model, usage: any): { cost: number; charged: number; pt: number; ct: number } {
+  const pt = Number(usage?.prompt_tokens ?? 0);
+  const ct = Number(usage?.completion_tokens ?? 0);
+  if (model.free) return { cost: 0, charged: 0, pt, ct };
+  let costUsd = Number(usage?.cost);
+  if (!Number.isFinite(costUsd) || costUsd <= 0) {
+    costUsd = pt * model.listPromptPrice + ct * model.listCompletionPrice;
+  }
+  const cost = Math.ceil(costUsd * 1_000_000);
+  const charged = Math.ceil(costUsd * (1 + env.markup) * 1_000_000);
+  return { cost, charged, pt, ct };
+}
+
+async function settle(who: Who, model: Model, usage: any) {
+  const c = chargeFor(model, usage);
+  let balance: number | null = null;
+  if (who) {
+    if (c.charged > 0) balance = await debit(who.address, c.charged);
+    await logUsage({
+      address: who.address,
+      key_id: who.keyId ?? null,
+      source: who.source,
+      model: model.id,
+      prompt_tokens: c.pt,
+      completion_tokens: c.ct,
+      cost_micros: c.cost,
+      charged_micros: c.charged,
+    }).catch(() => {});
+  }
+  return { ...c, balance };
+}
+
+export async function relay({ body, model, who, injectSynapsEvent }: RelayOpts): Promise<Response> {
+  const stream = Boolean(body.stream);
+  const payload: Record<string, any> = {
+    ...body,
+    model: model.id,
+    stream,
+    usage: { include: true },
+  };
+  if (!model.free) payload.provider = { ...(body.provider ?? {}), data_collection: "deny" };
+  if (payload.max_tokens == null) payload.max_tokens = 4096;
+
+  const upstream = await fetch("https://openrouter.ai/api/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${env.openrouterKey}`,
+      "Content-Type": "application/json",
+      "HTTP-Referer": env.siteUrl,
+      "X-Title": "Synaps",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  if (!upstream.ok || !upstream.body) {
+    const text = await upstream.text().catch(() => "");
+    let message = "The model provider returned an error.";
+    try {
+      message = JSON.parse(text)?.error?.message || message;
+    } catch {}
+    return Response.json({ error: { message, code: upstream.status } }, { status: upstream.status || 502 });
+  }
+
+  if (!stream) {
+    const json = await upstream.json();
+    const s = await settle(who, model, json.usage);
+    if (json.usage) json.usage.cost = s.charged / 1_000_000;
+    return Response.json(json);
+  }
+
+  const reader = upstream.body.getReader();
+  const decoder = new TextDecoder();
+  const encoder = new TextEncoder();
+  let buf = "";
+  let usage: any = null;
+
+  const out = new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      const { value, done } = await reader.read();
+      if (done) {
+        const s = await settle(who, model, usage).catch(() => null);
+        if (injectSynapsEvent && s) {
+          const ev = { synaps: { charged_micros: s.charged, balance_micros: s.balance, prompt_tokens: s.pt, completion_tokens: s.ct } };
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(ev)}\n\n`));
+        }
+        controller.close();
+        return;
+      }
+      buf += decoder.decode(value, { stream: true });
+      let idx: number;
+      while ((idx = buf.indexOf("\n")) >= 0) {
+        const line = buf.slice(0, idx).trim();
+        buf = buf.slice(idx + 1);
+        if (line.startsWith("data:")) {
+          const data = line.slice(5).trim();
+          if (data && data !== "[DONE]") {
+            try {
+              const j = JSON.parse(data);
+              if (j.usage) {
+                usage = j.usage;
+                if (!model.free && Number.isFinite(Number(j.usage.cost))) {
+                  // report the price the customer pays, not our cost
+                  j.usage.cost = Number(j.usage.cost) * (1 + env.markup);
+                  controller.enqueue(encoder.encode(`data: ${JSON.stringify(j)}\n\n`));
+                  continue;
+                }
+              }
+            } catch {}
+          }
+        }
+        controller.enqueue(encoder.encode(line + "\n"));
+      }
+    },
+    cancel() {
+      reader.cancel().catch(() => {});
+    },
+  });
+
+  return new Response(out, {
+    headers: {
+      "Content-Type": "text/event-stream; charset=utf-8",
+      "Cache-Control": "no-cache, no-transform",
+      Connection: "keep-alive",
+    },
+  });
+}
