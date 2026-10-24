@@ -130,7 +130,7 @@ second = client.chat.completions.create(model="deepseek/deepseek-chat", messages
       <Code
         lang="json"
         code={`{
-  "model": "google/gemini-2.5-flash-image",
+  "model": "google/gemini-3.1-flash-image",
   "modalities": ["image", "text"],
   "messages": [{ "role": "user", "content": "A glass orb orbiting a violet planet, studio lighting" }]
 }`}

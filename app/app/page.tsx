@@ -106,7 +106,7 @@ export default function ChatPage() {
 
   const grouped = useMemo(() => {
     const g: Record<string, Model[]> = {};
-    for (const m of models) (g[m.free ? "Free" : draws(m) && !m.outputs.includes("text") ? "Image generation" : m.maker] ||= []).push(m);
+    for (const m of models) (g[m.free ? "Free" : draws(m) ? "Image generation" : m.maker] ||= []).push(m);
     return g;
   }, [models]);
 
