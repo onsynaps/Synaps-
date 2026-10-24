@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { Brand, OrbitMark } from "@/components/Logo";
-import { XButton, XIcon } from "@/components/XLink";
-import { X_URL, X_HANDLE } from "@/lib/site";
+import { XButton, XIcon, GitHubIcon } from "@/components/XLink";
+import { X_URL, X_HANDLE, GITHUB_URL } from "@/lib/site";
 import { CopyButton } from "@/components/docs/CopyButton";
 import { CHAINS } from "@/lib/chains";
 import { InstallButton } from "@/components/Pwa";
@@ -359,7 +359,10 @@ reply = client.chat.completions.create(
         <div className="wrap lp-foot-in">
           <Brand size={28} />
           <nav aria-label="Footer"><a href="/app">App</a><a href="/models">Models</a><a href="/docs">Docs</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav>
-          <a className="x-handle" href={X_URL} target="_blank" rel="noreferrer"><XIcon size={14} />{X_HANDLE}</a>
+          <span className="lp-foot-social">
+            <a className="x-handle" href={X_URL} target="_blank" rel="noreferrer"><XIcon size={14} />{X_HANDLE}</a>
+            <a className="x-handle" href={GITHUB_URL} target="_blank" rel="noreferrer"><GitHubIcon size={14} />GitHub</a>
+          </span>
           <span>© 2026 Synaps · Robinhood Chain</span>
         </div>
       </footer>

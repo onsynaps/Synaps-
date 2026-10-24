@@ -123,3 +123,4 @@
 .lp-ca-btns button, .lp-ca-btns a { min-height: 38px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line-strong); background: transparent; color: var(--fg); font-size: 13px; cursor: pointer; display: inline-flex; align-items: center; text-decoration: none; }
 .lp-ca-btns button:hover, .lp-ca-btns a:hover { border-color: var(--violet); }
 .lp-install { min-height: 56px; padding: 0 26px; font-size: 16px; }
+.lp-foot-social { display: inline-flex; gap: 20px; align-items: center; }

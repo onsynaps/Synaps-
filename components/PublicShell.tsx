@@ -1,5 +1,6 @@
 import { Brand } from "@/components/Logo";
 import { XButton } from "@/components/XLink";
+import { GITHUB_URL } from "@/lib/site";
 import "@/components/app/app.css";
 
 /** Lightweight server-rendered shell for public, indexable pages (no wallet code). */
@@ -22,7 +23,7 @@ export function PublicShell({ children }: { children: React.ReactNode }) {
       <main className="ap-body">{children}</main>
       <footer className="pub-foot">
         <span>© 2026 Synaps</span>
-        <a href="/models">Models</a><a href="/docs">Docs</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a>
+        <a href="/models">Models</a><a href="/docs">Docs</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a><a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
       </footer>
     </div>
   );

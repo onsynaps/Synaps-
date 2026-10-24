@@ -1,5 +1,6 @@
 import { Brand } from "@/components/Logo";
 import { XButton } from "@/components/XLink";
+import { GITHUB_URL } from "@/lib/site";
 import "@/components/app/app.css";
 
 export function LegalPage({ title, updated, children }: { title: string; updated: string; children: React.ReactNode }) {
@@ -17,7 +18,7 @@ export function LegalPage({ title, updated, children }: { title: string; updated
           <div className="pg-head"><div><p className="mono">Legal · Updated {updated}</p><h1>{title}</h1></div></div>
           <div className="panel card-pad legal-body">{children}</div>
           <p style={{ margin: 0, fontSize: 14, color: "var(--dim)" }}>
-            <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/docs">Docs</a>
+            <a href="/terms">Terms</a> · <a href="/privacy">Privacy</a> · <a href="/docs">Docs</a> · <a href={GITHUB_URL} target="_blank" rel="noreferrer">GitHub</a>
           </p>
         </article>
       </main>
