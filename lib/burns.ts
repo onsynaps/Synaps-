@@ -3,6 +3,7 @@ import { db } from "./db";
 import { env } from "./env";
 import { robinhoodChain } from "./chains";
 import type { TokenInfo } from "./token";
+import { assetTransfers } from "./onchain";
 
 /**
  * Tracks $SYNAPS burns by the dev wallet automatically: every Transfer from the dev wallet
@@ -88,6 +89,23 @@ async function scan(token: TokenInfo, state: State): Promise<State> {
   return { scanned: from - 1, nonce: caughtUp ? nonceSum : state.nonce, raw: raw.toString(), txs: txs.slice(-200), initialSupply: state.initialSupply };
 }
 
+/** Uses the transfer index: every dev-wallet transfer of the token to the dead or zero address, full history. */
+async function scanIndexed(token: TokenInfo, state: State): Promise<State> {
+  const devs = devWallets();
+  const jobs = devs.flatMap((d) => [DEAD, ZERO].map((to) => assetTransfers({ from: d, to, contract: token.address, categories: ["erc20"], order: "desc", max: 1000 })));
+  const lists = await Promise.all(jobs);
+  const byHash = new Map<string, { hash: string; raw: string; block: number }>();
+  for (const list of lists) for (const t of list) {
+    if (!t.hash) continue;
+    const prev = byHash.get(t.hash);
+    const raw = (BigInt(prev?.raw ?? "0") + t.value).toString();
+    byHash.set(t.hash, { hash: t.hash, raw, block: t.block });
+  }
+  const txs = [...byHash.values()].sort((a, b) => a.block - b.block);
+  const raw = txs.reduce((s, t) => s + BigInt(t.raw), 0n);
+  return { ...state, raw: raw.toString(), txs: txs.slice(-200), scanned: txs.at(-1)?.block ?? state.scanned };
+}
+
 export async function getBurns(token: TokenInfo | null): Promise<BurnInfo | null> {
   if (!token || !env.treasury || !env.supabaseUrl) return null;
   try {
@@ -97,7 +115,7 @@ export async function getBurns(token: TokenInfo | null): Promise<BurnInfo | null
     const last = cached?.updated_at ? new Date(cached.updated_at).getTime() : 0;
     if (cached && Date.now() - last < CHECK_EVERY_MS) return cached;
 
-    state = await scan(token, state);
+    state = await scanIndexed(token, state).catch(() => scan(token, state));
     const c = client();
     const dec = token.decimals ?? 18;
     const a = getAddress(token.address);

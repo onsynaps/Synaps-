@@ -2,6 +2,7 @@ import { createPublicClient, http, erc20Abi, getAddress, toHex } from "viem";
 import { db } from "./db";
 import { env } from "./env";
 import { CHAINS, robinhoodChain } from "./chains";
+import { assetTransfers, findLaunch, launchFromTx } from "./onchain";
 
 /**
  * Finds the $SYNAPS contract automatically.
@@ -96,6 +97,23 @@ async function viaExplorer(treasuryTopic: string): Promise<TokenInfo | null | un
   return anyOk ? null : undefined; // undefined = explorer unusable, try RPC
 }
 
+/** Looks at the treasury's own recent transactions (a launch is always sent by it) and reads their receipts. */
+async function viaTreasuryTxs(treasuryTopic: string): Promise<TokenInfo | null> {
+  const treasury = "0x" + treasuryTopic.slice(26);
+  const txs = await assetTransfers({ from: treasury, categories: ["external", "erc20"], order: "desc", max: 40 });
+  const seen = new Set<string>();
+  for (const t of txs) {
+    if (seen.has(t.hash)) continue;
+    seen.add(t.hash);
+    const l = await launchFromTx(t.hash);
+    if (!l || l.deployer !== treasury || l.sender !== treasury) continue;
+    const meta = await readMeta(l.token);
+    if (!meta || !SYMBOL_OK.test(meta.symbol)) continue;
+    return { address: l.token, ...meta, pool: l.pool, pairToken: l.pairToken, txHash: l.txHash, block: l.block };
+  }
+  return null;
+}
+
 /** Fallback: walk the chain with eth_getLogs from where we left off, within a time budget. */
 async function viaRpc(treasuryTopic: string): Promise<TokenInfo | null> {
   const c = client();
@@ -136,9 +154,25 @@ export async function getToken(): Promise<TokenInfo | null> {
   try {
     const manual = process.env.SYNAPS_TOKEN_ADDRESS;
     if (manual && /^0x[0-9a-fA-F]{40}$/.test(manual)) {
-      const meta = await readMeta(manual).catch(() => null);
-      const pool = process.env.SYNAPS_POOL_ADDRESS;
-      return { address: getAddress(manual), symbol: meta?.symbol ?? "SYNAPS", name: meta?.name ?? "Synaps", decimals: meta?.decimals ?? 18, pool: pool && /^0x[0-9a-fA-F]{40}$/.test(pool) ? getAddress(pool) : null };
+      const addr = getAddress(manual);
+      const key = "token_manual:" + addr.toLowerCase();
+      const cached = env.supabaseUrl ? await getConfig<TokenInfo>(key).catch(() => null) : null;
+      if (cached?.address && (cached.pool || Date.now() - new Date(cached.detected_at || 0).getTime() < 5 * 60 * 1000)) return cached;
+      const [meta, launch] = await Promise.all([readMeta(manual).catch(() => null), findLaunch(addr).catch(() => null)]);
+      const poolEnv = process.env.SYNAPS_POOL_ADDRESS;
+      const row: TokenInfo = {
+        address: addr,
+        symbol: meta?.symbol ?? "SYNAPS",
+        name: meta?.name ?? "Synaps",
+        decimals: meta?.decimals ?? 18,
+        pool: poolEnv && /^0x[0-9a-fA-F]{40}$/.test(poolEnv) ? getAddress(poolEnv) : launch?.pool ?? null,
+        pairToken: launch?.pairToken ?? null,
+        txHash: launch?.txHash ?? null,
+        block: launch?.block ?? null,
+        detected_at: new Date().toISOString(),
+      };
+      if (env.supabaseUrl) await setConfig(key, row).catch(() => {});
+      return row;
     }
     if (!env.treasury || !env.supabaseUrl) return null;
 
@@ -151,6 +185,7 @@ export async function getToken(): Promise<TokenInfo | null> {
 
     const treasuryTopic = ("0x" + "0".repeat(24) + env.treasury.slice(2)).toLowerCase();
     let found = await viaExplorer(treasuryTopic);
+    if (!found) found = await viaTreasuryTxs(treasuryTopic).catch(() => null);
     if (found === undefined) found = await viaRpc(treasuryTopic);
     if (found) {
       const row = { ...found, detected_at: new Date().toISOString() };
