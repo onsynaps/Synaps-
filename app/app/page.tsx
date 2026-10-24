@@ -92,8 +92,12 @@ export default function ChatPage() {
     fetch("/api/models").then((r) => r.json()).then((j) => {
       const list: Model[] = (j.models || []).map((m: Model) => ({ ...m, inputs: m.inputs || ["text"], outputs: m.outputs || ["text"] }));
       setModels(list);
-      const def = list.find((m) => m.free && /gpt-oss/.test(m.id)) || list.find((m) => m.free && !draws(m)) || list[0];
-      if (def) setModelId((cur) => cur || def.id);
+      // ?model=<id> from a model page preselects that model
+      const want = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("model") : null;
+      const asked = want ? list.find((m) => m.id === want) : undefined;
+      const def = asked || list.find((m) => m.free && /gpt-oss/.test(m.id)) || list.find((m) => m.free && !draws(m)) || list[0];
+      if (def) setModelId((cur) => (asked ? asked.id : cur || def.id));
+      if (asked && draws(asked) && !asked.outputs.includes("text")) setImageMode(true);
     }).catch(() => setErr("Could not load models. Refresh to try again."));
   }, []);
 

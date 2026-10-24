@@ -356,7 +356,7 @@ reply = client.chat.completions.create(
       <footer className="lp-foot">
         <div className="wrap lp-foot-in">
           <Brand size={28} />
-          <nav aria-label="Footer"><a href="/app">App</a><a href="/app/models">Models</a><a href="/docs">Docs</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav>
+          <nav aria-label="Footer"><a href="/app">App</a><a href="/models">Models</a><a href="/docs">Docs</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav>
           <a className="x-handle" href={X_URL} target="_blank" rel="noreferrer"><XIcon size={14} />{X_HANDLE}</a>
           <span>© 2026 Synaps · Robinhood Chain</span>
         </div>

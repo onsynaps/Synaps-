@@ -5,6 +5,7 @@ import { env } from "@/lib/env";
 import { perMillion } from "@/lib/money";
 
 export const revalidate = 600;
+export const metadata = { alternates: { canonical: "/" } };
 
 const WANT: { maker: string; match?: RegExp; free?: boolean }[] = [
   { maker: "OpenAI", match: /gpt-oss/, free: true },

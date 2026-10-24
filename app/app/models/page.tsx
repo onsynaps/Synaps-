@@ -36,7 +36,7 @@ export default async function ModelsPage() {
             <tbody>
               {models.map((m) => (
                 <tr key={m.id}>
-                  <td><div style={{ fontWeight: 600 }}>{m.name}</div><div className="num" style={{ fontSize: 12, color: "var(--dim)" }}>{m.id}</div></td>
+                  <td><a href={"/models/" + m.id} style={{ fontWeight: 600, color: "var(--fg)", textDecoration: "none" }}>{m.name}</a><div className="num" style={{ fontSize: 12, color: "var(--dim)" }}>{m.id}</div></td>
                   <td><span className={"chip lane-" + m.lane}>{LANE[m.lane]}</span></td>
                   <td className="r num">{ctx(m.context)}</td>
                   <td className="r num">{perMillion(m.promptPrice)}</td>

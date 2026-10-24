@@ -18,6 +18,9 @@ export const metadata: Metadata = {
     type: "website",
   },
   twitter: { card: "summary_large_image", site: "@onsynaps" },
+  keywords: ["AI API", "pay with crypto", "Claude API", "GPT API", "Gemini API", "DeepSeek API", "OpenAI compatible", "Robinhood Chain", "Base", "USDC", "ETH", "pay per message"],
+  applicationName: "Synaps",
+  appleWebApp: { capable: true, title: "Synaps", statusBarStyle: "black-translucent" },
 };
 
 export const viewport: Viewport = {
