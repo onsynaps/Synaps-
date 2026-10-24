@@ -6,6 +6,13 @@ import { X_URL, X_HANDLE, GITHUB_URL } from "@/lib/site";
 import { CopyButton } from "@/components/docs/CopyButton";
 import { CHAINS } from "@/lib/chains";
 import { InstallButton } from "@/components/Pwa";
+import type { BurnInfo } from "@/lib/burns";
+
+const compact = (v: string | null | undefined) => {
+  const n = Number(v ?? 0);
+  if (!Number.isFinite(n)) return "0";
+  return n >= 1e9 ? (n / 1e9).toFixed(2) + "B" : n >= 1e6 ? (n / 1e6).toFixed(2) + "M" : n >= 1e3 ? (n / 1e3).toFixed(1) + "K" : n.toFixed(n < 10 ? 2 : 0);
+};
 import "./landing.css";
 
 export type CardModel = {
@@ -32,7 +39,7 @@ function ctx(n: number) {
 
 const STATEMENT = "Every model you need, behind one balance in your wallet. You pay for the messages you send, and";
 
-export default function Landing({ cards, receipt, markupPct, apiBase, token }: { cards: CardModel[]; receipt: Receipt; markupPct: number; apiBase: string; token?: { address: string; symbol: string; bonusPct?: number } | null }) {
+export default function Landing({ cards, receipt, markupPct, apiBase, token, burns }: { cards: CardModel[]; receipt: Receipt; markupPct: number; apiBase: string; token?: { address: string; symbol: string; bonusPct?: number } | null; burns?: BurnInfo | null }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -321,7 +328,32 @@ reply = client.chat.completions.create(
                     <a href={`${CHAINS.robinhood.explorer}/token/${token.address}`} target="_blank" rel="noreferrer">Explorer ↗</a>
                   </span>
                 </div>
-                <p style={{ margin: "0 auto 56px", fontSize: 13, color: "var(--dim)" }}>Always check the contract matches this one. Any other address is not ours.</p>
+                <p style={{ margin: "0 auto 22px", fontSize: 13, color: "var(--dim)" }}>Always check the contract matches this one. Any other address is not ours.</p>
+                {burns && (burns.devBurnTxs.length > 0 || (burns.burnedPct ?? 0) > 0) ? (
+                  <div className="lp-burn">
+                    <div className="lp-burn-head">
+                      <span className="lp-burn-ic" aria-hidden="true">🔥</span>
+                      <div>
+                        <strong>{(burns.burnedPct ?? 0) > 0 ? `${burns.burnedPct!.toFixed(2)}% of supply burned` : "Dev tokens burned"}</strong>
+                        <span>
+                          Dev wallet burned {compact(burns.devBurned)} $SYNAPS
+                          {burns.devHolds != null ? ` · now holds ${compact(burns.devHolds)}` : ""}
+                        </span>
+                      </div>
+                    </div>
+                    {burns.devBurnTxs.length > 0 && (
+                      <div className="lp-burn-txs">
+                        {burns.devBurnTxs.slice(0, 3).map((b) => (
+                          <a key={b.hash} href={`${CHAINS.robinhood.explorer}/tx/${b.hash}`} target="_blank" rel="noreferrer">
+                            {compact(b.amount)} burned · {b.hash.slice(0, 8)}…{b.hash.slice(-4)} ↗
+                          </a>
+                        ))}
+                      </div>
+                    )}
+                    <p className="lp-burn-note">Tracked automatically on-chain. Updates within minutes of every burn.</p>
+                  </div>
+                ) : null}
+                <div style={{ height: 34 }} />
               </>
             ) : (
               <p style={{ margin: "28px auto 56px", maxWidth: "38ch", color: "var(--muted)", fontSize: 19, fontWeight: 300 }}>Coming on Pons. Synaps works today with ETH and USDC; the token will make your balance go further.</p>
