@@ -44,8 +44,8 @@ export default async function ModelsIndex() {
       </p>
 
       {order.map((g) => (
-        <section key={g} className="panel card-pad" aria-labelledby={"g-" + g}>
-          <h2 id={"g-" + g} className="h3" style={{ fontSize: 22, margin: "0 0 10px" }}>{g}</h2>
+        <section key={g} className="panel card-pad" aria-labelledby={"g-" + g.replace(/\W+/g, "-")}>
+          <h2 id={"g-" + g.replace(/\W+/g, "-")} className="h3" style={{ fontSize: 22, margin: "0 0 10px" }}>{g}</h2>
           <div className="mdl-grid">
             {groups[g].map((m) => (
               <a key={m.id} className="mdl-card" href={modelPath(m.id)}>
