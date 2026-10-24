@@ -46,8 +46,11 @@ export async function POST(req: Request) {
   const hasImages = messages.some((m) => Array.isArray(m.content) && m.content.some((p) => p.type === "image_url"));
   const hasPdf = messages.some((m) => Array.isArray(m.content) && m.content.some((p) => p.type === "file"));
   const makeImage = body.mode === "image";
+  const web = body.web === true && !makeImage;
+  const instructions = typeof body.instructions === "string" ? body.instructions.trim().slice(0, 2000) : "";
   if (hasImages && !canReadImages(model)) return bad(`${model.name} can't read images. Pick a model that can see images.`, 422);
   if (makeImage && !canMakeImages(model)) return bad(`${model.name} can't create images. Pick an image model.`, 422);
+  if (web && model.free) return bad("Web search works with paid models. Pick a paid model or turn Web off.", 422);
 
   const address = await getSessionAddress();
   if (!(await rateHit("chat:" + (address || clientIp(req)), 30, 60))) {
@@ -78,8 +81,14 @@ export async function POST(req: Request) {
     : undefined;
 
   const extra: Record<string, any> = {};
+  const plugins: any[] = [];
   // PDFs: models without native file input get the free text-extraction parser
-  if (hasPdf && !readsFilesNatively(model)) extra.plugins = [{ id: "file-parser", pdf: { engine: "pdf-text" } }];
+  if (hasPdf && !readsFilesNatively(model)) plugins.push({ id: "file-parser", pdf: { engine: "pdf-text" } });
+  // web search: results are added to the prompt and cited in the reply
+  if (web) plugins.push({ id: "web", max_results: 5 });
+  if (plugins.length) extra.plugins = plugins;
+  // the person's custom instructions apply to every reply
+  if (instructions) messages.unshift({ role: "system", content: `The user set these instructions for all replies. Follow them unless they conflict with safety:\n${instructions}` });
   if (makeImage) extra.modalities = ["image", "text"];
 
   const res = await relay({
@@ -89,6 +98,7 @@ export async function POST(req: Request) {
     fallbacks,
     who: address ? { address, source: "chat" } : null,
     injectSynapsEvent: true,
+    surchargeMicros: web ? Math.round(env.webSearchFeeUsd * 1e6) : 0,
   });
   if (freeLeftAfter != null) {
     try { res.headers.set("x-free-left", String(freeLeftAfter)); } catch {}

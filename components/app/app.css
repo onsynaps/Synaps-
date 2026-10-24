@@ -251,3 +251,31 @@
 .inv-stats dd { margin: 4px 0 0; font-size: 22px; }
 .inv-note { margin: 0; font-size: 13px; color: var(--cyan); }
 @media (max-width: 520px) { .inv-stats { grid-template-columns: 1fr 1fr; } }
+
+/* chat: header actions, web sources, dialogs */
+.ch-bar-r { display: flex; align-items: center; gap: 8px; }
+.ch-price { font-size: 12px; color: var(--muted); }
+@media (max-width: 720px) { .ch-price { display: none; } }
+.icon-btn.on-dot { position: relative; }
+.icon-btn.on-dot::after { content: ""; position: absolute; top: 7px; right: 7px; width: 7px; height: 7px; border-radius: 50%; background: var(--cyan); }
+.srcs { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-top: 10px; }
+.srcs .mono { font-size: 10px; margin-right: 4px; }
+.src { display: inline-flex; align-items: center; gap: 7px; max-width: 100%; padding: 5px 10px 5px 5px; border-radius: 999px; border: 1px solid var(--line); background: #0a0910; color: var(--fg); text-decoration: none; font-size: 12.5px; }
+.src:hover { border-color: rgba(111,227,240,.5); }
+.src-n { display: inline-grid; place-items: center; width: 20px; height: 20px; border-radius: 50%; background: rgba(111,227,240,.14); color: var(--cyan); font-size: 11px; }
+.src-h { color: var(--dim); font-size: 11.5px; }
+.gen-gone { margin: 0 0 8px; font-size: 13px; color: var(--dim); }
+.dlg-back { position: fixed; inset: 0; z-index: 90; background: rgba(0,0,0,.55); backdrop-filter: blur(6px); display: grid; place-items: center; padding: 16px; }
+.dlg { width: 100%; max-width: 560px; padding: 24px; display: flex; flex-direction: column; gap: 14px; }
+.dlg h2 { margin: 0; font-weight: 500; font-size: 24px; letter-spacing: -.02em; }
+.dlg-sub { margin: 0; color: var(--muted); font-size: 14px; }
+.dlg-ta { width: 100%; min-height: 140px; resize: vertical; font-size: 15px; line-height: 1.5; padding: 12px 14px; }
+.dlg-check { display: flex; gap: 10px; align-items: center; font-size: 14px; cursor: pointer; }
+.dlg-check input { width: 18px; height: 18px; accent-color: var(--violet); }
+.dlg-act { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* shared chat page */
+.shr-body { display: flex; flex-direction: column; gap: 22px; }
+.shr-cta { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; border-color: rgba(165,148,255,.35); }
+.shr-cta strong { font-weight: 500; font-size: 18px; }
+.shr-cta p { margin: 4px 0 0; color: var(--muted); font-size: 14px; }

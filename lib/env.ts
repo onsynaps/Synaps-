@@ -26,6 +26,8 @@ export const env = {
   refMinUsd: Number(process.env.REF_MIN_USD ?? "2"),
   // free tier: all free chat traffic together, per day (keeps us under OpenRouter's free-model cap)
   freeGlobalLimit: Number(process.env.FREE_GLOBAL_DAILY_LIMIT ?? "800"),
+  // flat price per message with web search on (covers the search provider), USD
+  webSearchFeeUsd: Number(process.env.WEB_SEARCH_FEE_USD ?? "0.02"),
 };
 
 export function missingEnv(): string[] {

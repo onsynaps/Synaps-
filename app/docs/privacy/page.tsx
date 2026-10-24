@@ -22,7 +22,8 @@ export default function PrivacyLanes() {
 
       <h2>What Synaps itself keeps</h2>
       <ul>
-        <li><strong>Not stored:</strong> prompts, replies and chat history. Prompts pass through to the model and are not written to our database. Chat history stays in your browser.</li>
+        <li><strong>Not stored:</strong> prompts and replies sent through the API, and chats from signed-out use or with sync turned off. They pass through to the model and are not written to our database. Attached file contents and generated images are never stored.</li>
+        <li><strong>Synced (signed in, sync on):</strong> the text of your chats, so they follow your wallet across devices. Only your wallet can read them; turn sync off in the chat&apos;s Instructions &amp; settings.</li>
         <li><strong>Stored:</strong> for each request, the time, model, token counts and amount charged, so billing and your activity list work.</li>
       </ul>
       <p>The full details are in the <a href="/privacy">Privacy Policy</a>.</p>

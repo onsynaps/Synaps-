@@ -11,6 +11,7 @@ type RelayOpts = {
   who: Who; // null = anonymous free usage
   injectSynapsEvent?: boolean; // add a final SSE event with the charge (in-app chat only)
   fallbacks?: string[]; // other model IDs OpenRouter may try if the first one fails
+  surchargeMicros?: number; // flat extra charge, e.g. web search
 };
 
 /** Turns an OpenRouter error object into a message a person can act on. */
@@ -29,7 +30,7 @@ export function describeError(err: any, status?: number): string {
   return detail && !base.includes(detail) ? `${base}${providerName}: ${detail}` : base + providerName;
 }
 
-function chargeFor(model: Model, usage: any): { cost: number; charged: number; pt: number; ct: number } {
+function chargeFor(model: Model, usage: any, surcharge = 0): { cost: number; charged: number; pt: number; ct: number } {
   const pt = Number(usage?.prompt_tokens ?? 0);
   const ct = Number(usage?.completion_tokens ?? 0);
   if (model.free) return { cost: 0, charged: 0, pt, ct };
@@ -38,12 +39,12 @@ function chargeFor(model: Model, usage: any): { cost: number; charged: number; p
     costUsd = pt * model.listPromptPrice + ct * model.listCompletionPrice;
   }
   const cost = Math.ceil(costUsd * 1_000_000);
-  const charged = Math.ceil(costUsd * (1 + env.markup) * 1_000_000);
+  const charged = Math.ceil(costUsd * (1 + env.markup) * 1_000_000) + Math.max(0, Math.round(surcharge));
   return { cost, charged, pt, ct };
 }
 
-async function settle(who: Who, model: Model, usage: any) {
-  const c = chargeFor(model, usage);
+async function settle(who: Who, model: Model, usage: any, surcharge = 0) {
+  const c = chargeFor(model, usage, surcharge);
   let balance: number | null = null;
   if (who) {
     if (c.charged > 0) balance = await debit(who.address, c.charged);
@@ -61,7 +62,7 @@ async function settle(who: Who, model: Model, usage: any) {
   return { ...c, balance };
 }
 
-export async function relay({ body, model, who, injectSynapsEvent, fallbacks }: RelayOpts): Promise<Response> {
+export async function relay({ body, model, who, injectSynapsEvent, fallbacks, surchargeMicros = 0 }: RelayOpts): Promise<Response> {
   const stream = Boolean(body.stream);
   const payload: Record<string, any> = {
     ...body,
@@ -99,7 +100,7 @@ export async function relay({ body, model, who, injectSynapsEvent, fallbacks }: 
       console.error("[relay] error in body", model.id, JSON.stringify(json.error).slice(0, 500));
       return Response.json({ error: { message: describeError(json.error), code: json.error.code } }, { status: Number(json.error.code) || 502 });
     }
-    const s = await settle(who, model, json.usage);
+    const s = await settle(who, model, json.usage, surchargeMicros);
     if (json.usage) json.usage.cost = s.charged / 1_000_000;
     if (injectSynapsEvent) json.synaps = { charged_micros: s.charged, balance_micros: s.balance, prompt_tokens: s.pt, completion_tokens: s.ct };
     return Response.json(json);
@@ -120,7 +121,7 @@ export async function relay({ body, model, who, injectSynapsEvent, fallbacks }: 
     if (settled) return null;
     settled = true;
     try {
-      return await settle(who, model, usage);
+      return await settle(who, model, usage, surchargeMicros);
     } catch {
       return null;
     } finally {

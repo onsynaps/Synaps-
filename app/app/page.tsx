@@ -17,11 +17,19 @@ type Msg = {
   modelName?: string;
   attachments?: Attachment[];
   images?: string[]; // generated images (data URLs); not saved to history
+  hadImages?: number; // how many images a synced/reloaded message had
+  sources?: { url: string; title?: string }[]; // web search citations
 };
 type Convo = { id: string; title: string; model: string; messages: Msg[]; at: number };
 type Warn = { text: string; suggest?: Model };
 
 const STORE = "synaps.chats.v1";
+const INSTR = "synaps.instructions";
+const SYNC = "synaps.sync";
+const SHARES = "synaps.shares";
+const lsGet = (k: string) => { try { return localStorage.getItem(k); } catch { return null; } };
+const lsSet = (k: string, v: string) => { try { localStorage.setItem(k, v); } catch {} };
+const host = (u: string) => { try { return new URL(u).hostname.replace(/^www\./, ""); } catch { return u; } };
 const LANE = { free: "Free", private: "No training", provider: "Provider can read" } as const;
 const LANE_NOTE = {
   free: "Free model: the provider may log prompts to offer it at no cost.",
@@ -44,8 +52,8 @@ function save(c: Convo[]) {
     messages: cv.messages.map((m) => ({
       ...m,
       attachments: m.attachments?.map(({ data, text, ...rest }) => rest),
-      images: m.images?.length ? [] : undefined,
-      content: m.images?.length && !m.content ? "[Generated image — download it before you leave the page; images are not saved in history.]" : m.content,
+      images: undefined,
+      hadImages: m.images?.length || m.hadImages || undefined,
     })),
   }));
   try { localStorage.setItem(STORE, JSON.stringify(slim)); } catch {}
@@ -84,11 +92,19 @@ export default function ChatPage() {
   const [err, setErr] = useState<string | null>(null);
   const [warn, setWarn] = useState<Warn | null>(null);
   const [sideOpen, setSideOpen] = useState(false);
+  const [webMode, setWebMode] = useState(false);
+  const [instructions, setInstructions] = useState("");
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [syncOn, setSyncOn] = useState(true);
+  const [share, setShare] = useState<{ url?: string; token?: string; id?: string; busy?: boolean; err?: string } | null>(null);
+  const dirty = useRef<Set<string>>(new Set());
   const scroller = useRef<HTMLDivElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);
   const abortRef = useRef<AbortController | null>(null);
 
   useEffect(() => {
+    setInstructions(lsGet(INSTR) || "");
+    setSyncOn(lsGet(SYNC) !== "off");
     setConvos(load());
     fetch("/api/models").then((r) => r.json()).then((j) => {
       const list: Model[] = (j.models || []).map((m: Model) => ({ ...m, inputs: m.inputs || ["text"], outputs: m.outputs || ["text"] }));
@@ -107,7 +123,7 @@ export default function ChatPage() {
   const messages = active?.messages ?? [];
 
   useEffect(() => { scroller.current?.scrollTo({ top: scroller.current.scrollHeight, behavior: "smooth" }); }, [messages.length, messages[messages.length - 1]?.content, messages[messages.length - 1]?.images?.length]);
-  useEffect(() => { setWarn(null); }, [modelId, imageMode, files.length]);
+  useEffect(() => { setWarn(null); }, [modelId, imageMode, webMode, files.length]);
 
   const grouped = useMemo(() => {
     const g: Record<string, Model[]> = {};
@@ -115,9 +131,99 @@ export default function ChatPage() {
     return g;
   }, [models]);
 
+  // signed in: load instructions and synced chats; anything only this browser has gets uploaded
+  useEffect(() => {
+    if (!me?.address) return;
+    let stop = false;
+    (async () => {
+      try {
+        const r = await fetch("/api/settings", { cache: "no-store" });
+        if (r.ok) {
+          const j = await r.json();
+          const local = lsGet(INSTR) || "";
+          if (j.instructions) { setInstructions(j.instructions); lsSet(INSTR, j.instructions); }
+          else if (local) fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instructions: local }) }).catch(() => {});
+        }
+      } catch {}
+      if (lsGet(SYNC) === "off") return;
+      try {
+        const r = await fetch("/api/chats", { cache: "no-store" });
+        if (!r.ok || stop) return;
+        const { chats } = (await r.json()) as { chats: Convo[] };
+        setConvos((cs) => {
+          const byId = new Map(cs.map((c) => [c.id, c]));
+          for (const sc of chats) {
+            const lc = byId.get(sc.id);
+            if (!lc || (sc.at || 0) > (lc.at || 0)) byId.set(sc.id, sc);
+          }
+          const onServer = new Set(chats.map((c) => c.id));
+          for (const c of cs) if (!onServer.has(c.id)) dirty.current.add(c.id);
+          const merged = [...byId.values()].sort((a, b) => (b.at || 0) - (a.at || 0));
+          save(merged);
+          return merged;
+        });
+      } catch {}
+    })();
+    return () => { stop = true; };
+  }, [me?.address]);
+
+  // push changed chats once a reply has finished
+  useEffect(() => {
+    if (!me?.address || !syncOn || busy || !dirty.current.size) return;
+    const t = setTimeout(() => {
+      const ids = [...dirty.current];
+      dirty.current.clear();
+      for (const id of ids) {
+        const c = convos.find((x) => x.id === id);
+        if (!c || !c.messages.length) continue;
+        const messages = c.messages.map((m) => ({ ...m, attachments: m.attachments?.map(({ data, text, ...r }) => r), images: undefined, hadImages: m.images?.length || m.hadImages }));
+        fetch(`/api/chats/${id}`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: c.title, model: c.model, at: c.at, messages }) })
+          .then((r) => { if (!r.ok && r.status !== 413) dirty.current.add(id); })
+          .catch(() => dirty.current.add(id));
+      }
+    }, 800);
+    return () => clearTimeout(t);
+  }, [convos, busy, me?.address, syncOn]);
+
+  function saveInstructions(text: string) {
+    const v = text.slice(0, 2000);
+    setInstructions(v);
+    lsSet(INSTR, v);
+    if (me?.address) fetch("/api/settings", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ instructions: v }) }).catch(() => {});
+  }
+
+  async function shareActive() {
+    if (!active) return;
+    const saved: Record<string, { id: string; token: string; url: string; n: number }> = JSON.parse(lsGet(SHARES) || "{}");
+    const prev = saved[active.id];
+    if (prev && prev.n === active.messages.length) { setShare({ url: prev.url, token: prev.token, id: prev.id }); return; }
+    setShare({ busy: true });
+    try {
+      if (prev) fetch(`/api/share/${prev.id}`, { method: "DELETE", headers: { "x-delete-token": prev.token } }).catch(() => {});
+      const r = await fetch("/api/share", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ title: active.title, model: active.model, messages: active.messages.map((m) => ({ ...m, attachments: m.attachments?.map(({ data, text, thumb, ...x }) => x), images: undefined, hadImages: m.images?.length || m.hadImages })) }) });
+      const j = await r.json();
+      if (!r.ok) throw new Error(j?.error?.message || "Could not create the link.");
+      saved[active.id] = { id: j.id, token: j.delete_token, url: j.url, n: active.messages.length };
+      lsSet(SHARES, JSON.stringify(saved));
+      setShare({ url: j.url, token: j.delete_token, id: j.id });
+    } catch (e: any) {
+      setShare({ err: e?.message || "Could not create the link." });
+    }
+  }
+
+  async function unshare() {
+    if (!share?.id || !active) return;
+    await fetch(`/api/share/${share.id}`, { method: "DELETE", headers: { "x-delete-token": share.token || "" } }).catch(() => {});
+    const saved = JSON.parse(lsGet(SHARES) || "{}");
+    delete saved[active.id];
+    lsSet(SHARES, JSON.stringify(saved));
+    setShare(null);
+  }
+
   function update(id: string, fn: (c: Convo) => Convo) {
+    dirty.current.add(id);
     setConvos((cs) => {
-      const next = cs.map((c) => (c.id === id ? fn(c) : c));
+      const next = cs.map((c) => (c.id === id ? { ...fn(c), at: Date.now() } : c));
       save(next);
       return next;
     });
@@ -171,6 +277,11 @@ export default function ChatPage() {
       setWarn({ text: `${mdl.name} can't create images.${s ? ` Switch to ${s.name} to generate one.` : " Pick an image model."}`, suggest: s });
       return;
     }
+    if (webMode && !imageMode && mdl.free) {
+      const s = suggestFor((m) => !m.free && m.outputs.includes("text") && !draws(m) && (!needsVision || sees(m)));
+      setWarn({ text: `Web search works with paid models (about ${fmtUsd(20_000)} extra per message).${s ? ` Switch to ${s.name}?` : ""}`, suggest: s });
+      return;
+    }
     if (!mdl.free && !me?.address) { await signIn(); return; }
     if (imageMode && !content) { setErr("Describe the image you want."); return; }
 
@@ -186,7 +297,7 @@ export default function ChatPage() {
     }
     const userMsg: Msg = { role: "user", content, attachments: files.length ? files : undefined };
     const outgoing: Msg[] = [...history, userMsg];
-    const payload = JSON.stringify({ model: mdl.id, mode: imageMode ? "image" : "chat", messages: outgoing.map(toApi) });
+    const payload = JSON.stringify({ model: mdl.id, mode: imageMode ? "image" : "chat", web: webMode && !imageMode, instructions: instructions || undefined, messages: outgoing.map(toApi) });
     if (payload.length > MAX_BODY) {
       setErr("These attachments are too large to send together. Remove some files or start a new chat.");
       return;
@@ -228,6 +339,16 @@ export default function ChatPage() {
       const reader = res.body.getReader();
       const dec = new TextDecoder();
       let buf = "", acc = "";
+      const sources = new Map<string, { url: string; title?: string }>();
+      const addCites = (list: any) => {
+        if (!Array.isArray(list)) return false;
+        let added = false;
+        for (const a of list) {
+          const c = a?.url_citation ?? a;
+          if (typeof c?.url === "string" && !sources.has(c.url)) { sources.set(c.url, { url: c.url, title: c.title }); added = true; }
+        }
+        return added;
+      };
       for (;;) {
         const { value, done } = await reader.read();
         if (done) break;
@@ -247,6 +368,7 @@ export default function ChatPage() {
             continue;
           }
           if (j.error) throw new Error(j.error.message || "The model stopped with an error.");
+          if (addCites(j.choices?.[0]?.delta?.annotations) || addCites(j.choices?.[0]?.message?.annotations)) patchLast({ sources: [...sources.values()] });
           const delta = j.choices?.[0]?.delta?.content;
           if (delta) {
             acc += delta;
@@ -273,12 +395,14 @@ export default function ChatPage() {
   function newChat() { setActiveId(""); setErr(null); setWarn(null); setSideOpen(false); }
   function remove(id: string) {
     setConvos((cs) => { const n = cs.filter((c) => c.id !== id); save(n); return n; });
+    dirty.current.delete(id);
+    if (me?.address) fetch(`/api/chats/${id}`, { method: "DELETE" }).catch(() => {});
     if (id === activeId) setActiveId("");
   }
 
   const estimate = !model ? "" : imageMode && !draws(model) ? "" : model.free ? (typeof me?.freeLeft === "number" ? `Free · ${me.freeLeft} left today` : "Free") : imageMode && draws(model)
     ? (model.imagePrice ? "≈ " + fmtUsd(Math.ceil(model.imagePrice * 1e6), 3) + " per image" : "Priced per image")
-    : "≈ " + fmtUsd(Math.ceil(model.completionPrice * 800 * 1e6), 4) + " per reply";
+    : "≈ " + fmtUsd(Math.ceil(model.completionPrice * 800 * 1e6) + (webMode ? 20_000 : 0), 4) + " per reply" + (webMode ? " incl. web" : "");
 
   return (
     <div className="ch">
@@ -287,7 +411,7 @@ export default function ChatPage() {
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>New chat
         </button>
         <div className="ch-hist">
-          {convos.length === 0 && <p style={{ color: "var(--dim)", fontSize: 13, padding: "8px 12px", margin: 0 }}>Your chats appear here. They are saved in this browser only.</p>}
+          {convos.length === 0 && <p style={{ color: "var(--dim)", fontSize: 13, padding: "8px 12px", margin: 0 }}>Your chats appear here.</p>}
           {convos.map((c) => (
             <div key={c.id} style={{ display: "flex", alignItems: "center" }}>
               <button className={c.id === activeId ? "on" : ""} style={{ flex: 1, minWidth: 0 }} onClick={() => { setActiveId(c.id); setModelId(c.model); setSideOpen(false); }}>{c.title}</button>
@@ -297,7 +421,7 @@ export default function ChatPage() {
         </div>
         <p style={{ margin: 0, fontSize: 12, color: "var(--dim)", display: "flex", gap: 8 }}>
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true" style={{ flex: "none", marginTop: 2 }}><rect x="5" y="10" width="14" height="10" rx="2" /><path d="M8 10V7a4 4 0 018 0v3" /></svg>
-          History never leaves this browser.
+          {me?.address && syncOn ? "Synced to your wallet. Only you can see it." : "Saved in this browser only."}
         </p>
       </aside>
 
@@ -319,11 +443,21 @@ export default function ChatPage() {
             {model && sees(model) && <span className="chip cap">Sees images</span>}
             {model && draws(model) && <span className="chip cap">Makes images</span>}
           </div>
-          {model && (
-            <span className="num" style={{ fontSize: 12, color: "var(--muted)" }}>
-              {model.free ? "Free" : `${perMillion(model.promptPrice)} in · ${perMillion(model.completionPrice)} out / 1M`}
-            </span>
-          )}
+          <div className="ch-bar-r">
+            {model && (
+              <span className="num ch-price">
+                {model.free ? "Free" : `${perMillion(model.promptPrice)} in · ${perMillion(model.completionPrice)} out / 1M`}
+              </span>
+            )}
+            <button className={"icon-btn" + (instructions ? " on-dot" : "")} style={{ width: 40, height: 40 }} aria-label="Instructions and settings" title="Instructions & settings" onClick={() => setSettingsOpen(true)}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 6h10M18 6h2M4 12h4M12 12h8M4 18h12M20 18h0" /><circle cx="16" cy="6" r="2" /><circle cx="10" cy="12" r="2" /><circle cx="18" cy="18" r="2" /></svg>
+            </button>
+            {active && active.messages.some((m) => m.role === "assistant" && m.content) && !busy && (
+              <button className="icon-btn" style={{ width: 40, height: 40 }} aria-label="Share this chat" title="Share this chat" onClick={shareActive}>
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M12 3v13M7 8l5-5 5 5M5 12v8h14v-8" /></svg>
+              </button>
+            )}
+          </div>
         </div>
 
         <div className="ch-msgs" ref={scroller}>
@@ -369,10 +503,21 @@ export default function ChatPage() {
                           ))}
                         </div>
                       ) : null}
+                      {!m.images?.length && m.hadImages ? <p className="gen-gone">{m.hadImages} generated image{m.hadImages > 1 ? "s" : ""} — images aren&apos;t kept in history.</p> : null}
                       <div className="body">
                         {m.content ? <Markdown text={m.content} /> : null}
-                        {busy && i === messages.length - 1 && (imageMode ? <span className="gen-wait">Creating image…</span> : <span className="caret" aria-hidden="true" />)}
+                        {busy && i === messages.length - 1 && (imageMode ? <span className="gen-wait">Creating image…</span> : webMode && !m.content ? <span className="gen-wait">Searching the web…</span> : <span className="caret" aria-hidden="true" />)}
                       </div>
+                      {m.sources?.length ? (
+                        <div className="srcs">
+                          <span className="mono">Sources</span>
+                          {m.sources.map((src, k) => (
+                            <a key={k} className="src" href={src.url} target="_blank" rel="noreferrer nofollow" title={src.title || src.url}>
+                              <span className="src-n num">{k + 1}</span>{src.title ? src.title.slice(0, 60) : host(src.url)}<span className="src-h">{host(src.url)}</span>
+                            </a>
+                          ))}
+                        </div>
+                      ) : null}
                       {m.charged !== undefined && (
                         <div className="msg-meta"><span>{m.images?.length ? `${m.images.length} image${m.images.length > 1 ? "s" : ""}` : `${m.tokens ?? 0} tokens`}</span><span>{m.charged ? fmtUsd(m.charged, 4) : "Free"}</span></div>
                       )}
@@ -446,6 +591,10 @@ export default function ChatPage() {
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="3" /><circle cx="9" cy="10" r="2" /><path d="M21 16l-5-5-8 9" /></svg>
                   <span>{imageMode ? "Image on" : "Image"}</span>
                 </button>
+                <button type="button" className={"tool-btn" + (webMode ? " on" : "")} aria-pressed={webMode} title="Search the web (paid models)" onClick={() => setWebMode((v) => !v)}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M3 12h18M12 3c2.5 2.6 3.8 5.6 3.8 9s-1.3 6.4-3.8 9c-2.5-2.6-3.8-5.6-3.8-9S9.5 5.6 12 3z" /></svg>
+                  <span>{webMode ? "Web on" : "Web"}</span>
+                </button>
                 <span className="num ch-estimate">{estimate}</span>
               </div>
               {busy ? (
@@ -462,6 +611,55 @@ export default function ChatPage() {
           {model && <p className="ch-note">{LANE_NOTE[model.lane]}</p>}
         </div>
       </section>
+
+      {settingsOpen && (
+        <div className="dlg-back" role="dialog" aria-modal="true" aria-label="Instructions and settings" onClick={() => setSettingsOpen(false)}>
+          <div className="dlg panel" onClick={(e) => e.stopPropagation()}>
+            <h2>Instructions</h2>
+            <p className="dlg-sub">Tell every model how to answer you: your language, tone, what you work on. Applies to all chats.</p>
+            <textarea
+              className="input dlg-ta"
+              rows={6}
+              maxLength={2000}
+              placeholder={"e.g. Reply in Indonesian. Keep answers short. I build on Robinhood Chain, so assume Solidity and viem."}
+              defaultValue={instructions}
+              id="instr"
+            />
+            <label className="dlg-check">
+              <input type="checkbox" checked={syncOn} onChange={(e) => { setSyncOn(e.target.checked); lsSet(SYNC, e.target.checked ? "on" : "off"); }} />
+              <span>Sync chat history to my wallet{me?.address ? "" : " (after you connect)"}</span>
+            </label>
+            <p className="dlg-sub" style={{ marginTop: -4 }}>When on, your chats follow your wallet across devices. Attached files and generated images are never stored.</p>
+            <div className="dlg-act">
+              <button className="btn btn-ghost btn-sm" onClick={() => setSettingsOpen(false)}>Cancel</button>
+              <button className="btn btn-violet btn-sm" onClick={() => { saveInstructions((document.getElementById("instr") as HTMLTextAreaElement)?.value || ""); setSettingsOpen(false); }}>Save</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {share && (
+        <div className="dlg-back" role="dialog" aria-modal="true" aria-label="Share chat" onClick={() => setShare(null)}>
+          <div className="dlg panel" onClick={(e) => e.stopPropagation()}>
+            <h2>Share this chat</h2>
+            {share.busy && <p className="dlg-sub">Creating a link…</p>}
+            {share.err && <div className="notice err">{share.err}</div>}
+            {share.url && (
+              <>
+                <p className="dlg-sub">Anyone with the link can read this conversation as it is now. Attached files are not included.</p>
+                <div className="inv-link"><code className="num">{share.url.replace(/^https?:\/\//, "")}</code>
+                  <button className="btn btn-violet btn-sm" onClick={() => navigator.clipboard?.writeText(share.url!).catch(() => {})}>Copy</button>
+                  <a className="btn btn-ghost btn-sm" href={`https://x.com/intent/post?text=${encodeURIComponent((active?.title || "A chat on Synaps") + " " + share.url)}`} target="_blank" rel="noreferrer">Post on X</a>
+                </div>
+                <div className="dlg-act">
+                  <button className="btn btn-ghost btn-sm" onClick={unshare}>Stop sharing</button>
+                  <button className="btn btn-violet btn-sm" onClick={() => setShare(null)}>Done</button>
+                </div>
+              </>
+            )}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

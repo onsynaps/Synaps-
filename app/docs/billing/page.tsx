@@ -50,6 +50,9 @@ provider_cost = input_tokens  × input_price_per_token
       <h2>Free models</h2>
       <p>Models whose ID ends in <code>:free</code> cost nothing and are never charged. They have daily limits (see <a href="/docs/rate-limits">Rate limits</a>), may be slower, and their providers may log prompts.</p>
 
+      <h2>Web search</h2>
+      <p>With <strong>Web</strong> turned on in the chat, the model reads live search results before answering and cites its sources. Each such message costs the normal model price plus a flat <strong>$0.02</strong> for the search. Web search is available with paid models only.</p>
+
       <h2>Controlling spend</h2>
       <ul>
         <li>Set <code>max_tokens</code> on each request to cap the output.</li>

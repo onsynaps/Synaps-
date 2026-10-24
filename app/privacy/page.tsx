@@ -13,13 +13,17 @@ export default function Privacy() {
         <li><strong>Top-ups:</strong> transaction hash, network, asset and credited amount.</li>
         <li><strong>Usage records:</strong> time, model, token counts and the amount charged for each request. Not the content.</li>
         <li><strong>API keys:</strong> a one-way hash, a short prefix, the name you gave it and its limit. We cannot see the full key after you create it.</li>
-        <li><strong>Rate-limit counters</strong> keyed by wallet, key or IP address, kept only to stop abuse.</li>
+        <li><strong>Rate-limit counters</strong> keyed by wallet, key, IP address or a random browser id, kept only to stop abuse.</li>
+        <li><strong>Synced chat history</strong>, if you are signed in and sync is on (it is on by default; turn it off in the chat&apos;s Instructions &amp; settings). We keep the text of your chats, model names and attachment file names so they appear on your other devices. File contents and generated images are never stored. Only your wallet can read them.</li>
+        <li><strong>Custom instructions</strong> you save, so they apply on every device.</li>
+        <li><strong>Shared chats:</strong> when you press Share, a read-only copy of that chat is stored and anyone with the link can read it, until you choose Stop sharing.</li>
+        <li><strong>Referrals:</strong> which wallet invited yours and the bonus paid.</li>
       </ul>
 
       <h2>What we do not store</h2>
       <ul>
-        <li>Your prompts and the replies. They pass through our server to the model and are not saved by Synaps.</li>
-        <li>Your chat history. It lives in your browser&apos;s local storage and never reaches our database.</li>
+        <li>Prompts and replies from signed-out use, or with sync turned off. They pass through our server to the model and are not saved by Synaps.</li>
+        <li>The contents of files you attach, and images you generate.</li>
         <li>Email, name or phone number. We never ask for them.</li>
       </ul>
 
@@ -39,7 +43,7 @@ export default function Privacy() {
       <p>We set one cookie to keep you signed in. We use Vercel Web Analytics to count page views and see which pages are popular. It sets no cookies, does not track you across sites, and only collects anonymous, aggregated data such as page path, referrer, country and device type. It never sees your chats or prompts. There are no ads and no third-party pixels.</p>
 
       <h2>Your choices</h2>
-      <p>Clear your chat history by deleting chats in the app or clearing your browser storage. To have your wallet&apos;s usage records deleted, message <a href="https://x.com/onsynaps" target="_blank" rel="noreferrer">@onsynaps</a> on X from a context where you can prove the wallet is yours.</p>
+      <p>Delete a chat in the app to remove it from this browser and from sync. Turn sync off to keep new chats only in your browser. Stop sharing removes a shared link. To have your wallet&apos;s usage records deleted, message <a href="https://x.com/onsynaps" target="_blank" rel="noreferrer">@onsynaps</a> on X from a context where you can prove the wallet is yours.</p>
     </LegalPage>
   );
 }
