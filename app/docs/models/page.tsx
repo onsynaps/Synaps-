@@ -25,6 +25,8 @@ export default function ModelsDoc() {
       "name": "DeepSeek V3",
       "context_length": 163840,
       "privacy_lane": "private",
+      "input_modalities": ["text"],
+      "output_modalities": ["text"],
       "pricing": {
         "prompt_per_million_usd": 0.36,
         "completion_per_million_usd": 1.06
@@ -40,6 +42,8 @@ export default function ModelsDoc() {
         { name: "owned_by", type: "string", desc: <>The company that makes the model.</> },
         { name: "name", type: "string", desc: <>A readable name.</> },
         { name: "context_length", type: "integer", desc: <>Maximum tokens of input plus output the model accepts.</> },
+        { name: "input_modalities", type: "string[]", desc: <>What the model can read: <code>text</code>, plus <code>image</code> for vision models and <code>file</code> for native PDF input. PDFs work on every model; see <a href="/docs/chat-completions">Chat completions</a>.</> },
+        { name: "output_modalities", type: "string[]", desc: <>What the model can produce. Models with <code>image</code> can generate images.</> },
         { name: "privacy_lane", type: "string", desc: <><code>free</code>, <code>private</code> or <code>provider</code>. See <a href="/docs/privacy">Privacy lanes</a>.</> },
         { name: "pricing.prompt_per_million_usd", type: "number", desc: <>Price per million input tokens, <strong>including</strong> the {MARKUP_PCT}% Synaps fee.</> },
         { name: "pricing.completion_per_million_usd", type: "number", desc: <>Price per million output tokens, including the fee.</> },

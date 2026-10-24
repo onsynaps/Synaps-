@@ -1,4 +1,4 @@
-import { BASE, Callout, Code, DocTitle, Pager, Params } from "@/components/docs/kit";
+import { MARKUP_PCT, BASE, Callout, Code, DocTitle, Pager, Params } from "@/components/docs/kit";
 
 export const metadata = { title: "Chat completions" };
 
@@ -104,7 +104,52 @@ second = client.chat.completions.create(model="deepseek/deepseek-chat", messages
   ]
 }`}
       />
-      <p>Image support depends on the model. Check the model&apos;s page with its provider if you are unsure.</p>
+      <p>
+        You can also send an image as a base64 data URL (<code>data:image/png;base64,…</code>). PNG, JPEG, WebP and GIF are accepted.
+        Only models that list <code>image</code> in <code>input_modalities</code> on <a href="/docs/models">GET /models</a> can read images; sending one to a text-only model returns an error.
+      </p>
+      <Callout kind="tip" title="Keep images small">Requests are limited to about 4.5 MB. Resize photos to around 1600 px on the longest side before encoding; models see no extra detail beyond that anyway.</Callout>
+
+      <h2>PDFs and documents</h2>
+      <p>Send a PDF as a <code>file</code> part with a base64 data URL. It works with every model: models that read files natively get the PDF as is, and the rest receive its extracted text.</p>
+      <Code
+        lang="json"
+        code={`{
+  "role": "user",
+  "content": [
+    { "type": "text", "text": "Summarise the key terms in this contract." },
+    { "type": "file", "file": { "filename": "contract.pdf", "file_data": "data:application/pdf;base64,JVBERi0x..." } }
+  ]
+}`}
+      />
+      <p>For plain text, Markdown, CSV, JSON or code files, put the contents straight into the text of the message. That is cheaper and works with any model.</p>
+      <Callout kind="note" title="Scanned PDFs">Text extraction reads the text layer of a PDF. A scanned document with no text layer comes through empty on models without native file input; use a vision model, or send the pages as images.</Callout>
+
+      <h2>Generating images</h2>
+      <p>Models that list <code>image</code> in <code>output_modalities</code> can create images. Add <code>{`"modalities": ["image", "text"]`}</code> and send the request without streaming:</p>
+      <Code
+        lang="json"
+        code={`{
+  "model": "google/gemini-2.5-flash-image",
+  "modalities": ["image", "text"],
+  "messages": [{ "role": "user", "content": "A glass orb orbiting a violet planet, studio lighting" }]
+}`}
+      />
+      <p>The images come back on the assistant message as base64 data URLs:</p>
+      <Code
+        lang="json"
+        code={`{
+  "choices": [{
+    "message": {
+      "role": "assistant",
+      "content": "Here is your image.",
+      "images": [{ "type": "image_url", "image_url": { "url": "data:image/png;base64,iVBORw0..." } }]
+    }
+  }],
+  "usage": { "prompt_tokens": 14, "completion_tokens": 1290, "cost": 0.0468 }
+}`}
+      />
+      <p>You pay what the model charges for the image plus the usual {MARKUP_PCT}% fee, shown in <code>usage.cost</code>. Model IDs change over time, so pick a current one from <a href="/docs/models">GET /models</a>.</p>
 
       <Pager prev={{ href: "/docs/authentication", label: "Authentication" }} next={{ href: "/docs/streaming", label: "Streaming" }} />
     </article>
