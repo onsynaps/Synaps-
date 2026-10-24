@@ -1,4 +1,5 @@
 import { Brand } from "@/components/Logo";
+import { XButton } from "@/components/XLink";
 import "@/components/app/app.css";
 
 export function LegalPage({ title, updated, children }: { title: string; updated: string; children: React.ReactNode }) {
@@ -8,7 +9,7 @@ export function LegalPage({ title, updated, children }: { title: string; updated
       <header className="ap-top">
         <div className="ap-top-in glass">
           <div className="ap-left" style={{ paddingLeft: 6 }}><Brand size={30} /></div>
-          <div className="ap-right"><a className="btn btn-glow btn-sm" href="/app">Launch app</a></div>
+          <div className="ap-right"><XButton /><a className="btn btn-glow btn-sm" href="/app">Launch app</a></div>
         </div>
       </header>
       <main className="ap-body">

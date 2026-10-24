@@ -130,3 +130,8 @@ img, svg { max-width: 100%; }
   .atmos-grain, .orb-halo, .orb-core { animation: none; }
   .orb-ring, .orb-ring2 { animation: none; stroke-dashoffset: 0; }
 }
+
+/* X link */
+.x-btn { width: 44px; height: 44px; flex: none; border-radius: 999px; display: inline-flex; align-items: center; justify-content: center; color: var(--muted); border: 1px solid var(--line); background: rgba(255,255,255,.03); transition: color .25s, border-color .25s, transform .4s var(--ease); }
+.x-btn:hover { color: var(--fg); border-color: var(--line-strong); transform: translateY(-1px); }
+.x-handle { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; }

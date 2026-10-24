@@ -1,4 +1,5 @@
 import { Brand } from "@/components/Logo";
+import { XButton } from "@/components/XLink";
 import { DocsNav } from "@/components/docs/DocsNav";
 import "@/components/app/app.css";
 import "@/components/docs/docs.css";
@@ -16,6 +17,7 @@ export default function DocsLayout({ children }: { children: React.ReactNode }) 
             <span className="mono dc-badge">Docs</span>
           </div>
           <div className="ap-right">
+            <XButton />
             <a className="btn btn-ghost btn-sm" href="/app/models">Models</a>
             <a className="btn btn-glow btn-sm" href="/app/keys">Get API key</a>
           </div>

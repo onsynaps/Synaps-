@@ -2,6 +2,8 @@
 import { useState } from "react";
 import { usePathname } from "next/navigation";
 import { Brand } from "@/components/Logo";
+import { XButton } from "@/components/XLink";
+import { X_URL, X_HANDLE } from "@/lib/site";
 import { useSession } from "./Session";
 import { fmtUsd } from "@/lib/money";
 import "./app.css";
@@ -36,9 +38,11 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               {NAV.map((n) => (
                 <a key={n.href} href={n.href} className={path === n.href ? "on" : ""} onClick={() => setOpen(false)}>{n.label}</a>
               ))}
+              <a href={X_URL} target="_blank" rel="noreferrer" className="ap-nav-x">X · {X_HANDLE}</a>
             </nav>
           </div>
           <div className="ap-right">
+            <XButton className="ap-x" />
             {me?.address ? (
               <>
                 <a className="ap-bal" href="/app/wallet" title="Balance">

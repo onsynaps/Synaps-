@@ -100,3 +100,7 @@
 .legal-body li { margin: 6px 0; }
 .legal-body li::marker { color: var(--violet); }
 .legal-body a, .legal a { color: var(--violet); }
+.ap-right .x-btn { width: 40px; height: 40px; }
+@media (max-width: 900px) { .ap-x { display: none; } }
+.ap-nav-x { display: none; }
+@media (max-width: 900px) { .ap-nav .ap-nav-x { display: block; border-top: 1px solid var(--line); margin-top: 4px; } }

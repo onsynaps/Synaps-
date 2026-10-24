@@ -1,6 +1,8 @@
 "use client";
 import { useEffect, useRef } from "react";
 import { Brand, OrbitMark } from "@/components/Logo";
+import { XButton, XIcon } from "@/components/XLink";
+import { X_URL, X_HANDLE } from "@/lib/site";
 import "./landing.css";
 
 export type CardModel = {
@@ -141,6 +143,7 @@ export default function Landing({ cards, receipt, markupPct, apiBase }: { cards:
             <a className="l" href="#how">How it works</a>
             <a className="l" href="#pricing">Pricing</a>
             <a className="l" href="/docs">Docs</a>
+            <XButton />
             <a className="btn btn-glow" href="/app">Launch app</a>
           </nav>
         </div>
@@ -308,7 +311,7 @@ reply = client.chat.completions.create(
             <div className="lp-tiles">
               <div className="lp-tile"><strong>Bonus credit</strong><span className="mono" style={{ fontSize: 11 }}>Pay with $SYNAPS</span><p>Top up with the token and get more credit for the same amount. Rate announced at launch.</p></div>
               <div className="lp-tile"><strong>Public treasury</strong><span className="mono" style={{ fontSize: 11 }}>On-chain</span><p>Top-ups and creator fees land in one wallet anyone can check.</p></div>
-              <div className="lp-tile"><strong>Pons</strong><span className="mono" style={{ fontSize: 11 }}>Launch · TBA</span><p>The contract is posted here and on X on launch day. Anything earlier is not ours.</p></div>
+              <div className="lp-tile"><strong>Pons</strong><span className="mono" style={{ fontSize: 11 }}>Launch · TBA</span><p>The contract is posted here and on X ({X_HANDLE}) on launch day. Anything earlier is not ours.</p></div>
             </div>
             <p style={{ marginTop: 28, fontSize: 13, color: "var(--dim)" }}>$SYNAPS will be a utility token. It is not an investment and nothing here is financial advice.</p>
           </div>
@@ -320,7 +323,10 @@ reply = client.chat.completions.create(
               <span className="lp-cta-logo"><OrbitMark size={104} /></span>
               <h2 className="h2" style={{ fontSize: "clamp(44px, 8vw, 112px)" }}>Think out loud.<br /><span className="serif">Pay per thought.</span></h2>
               <p style={{ margin: 0, color: "var(--muted)", fontSize: 19, fontWeight: 300 }}>Free models need nothing. Premium ones need a wallet and $1.</p>
-              <a className="btn btn-solid" href="/app" style={{ minHeight: 56, padding: "0 30px", fontSize: 16 }}>Launch Synaps {ARROW}</a>
+              <div style={{ display: "flex", gap: 12, flexWrap: "wrap", justifyContent: "center" }}>
+                <a className="btn btn-solid" href="/app" style={{ minHeight: 56, padding: "0 30px", fontSize: 16 }}>Launch Synaps {ARROW}</a>
+                <a className="btn btn-ghost" href={X_URL} target="_blank" rel="noreferrer" style={{ minHeight: 56, padding: "0 26px", fontSize: 16 }}><XIcon size={15} /> Follow {X_HANDLE}</a>
+              </div>
             </div>
           </div>
         </section>
@@ -329,7 +335,8 @@ reply = client.chat.completions.create(
       <footer className="lp-foot">
         <div className="wrap lp-foot-in">
           <Brand size={28} />
-          <nav aria-label="Footer"><a href="/app">App</a><a href="/app/models">Models</a><a href="/docs">Docs</a><a href="https://x.com/onsynaps" target="_blank" rel="noreferrer">X</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav>
+          <nav aria-label="Footer"><a href="/app">App</a><a href="/app/models">Models</a><a href="/docs">Docs</a><a href="/terms">Terms</a><a href="/privacy">Privacy</a></nav>
+          <a className="x-handle" href={X_URL} target="_blank" rel="noreferrer"><XIcon size={14} />{X_HANDLE}</a>
           <span>© 2026 Synaps · Robinhood Chain</span>
         </div>
       </footer>
