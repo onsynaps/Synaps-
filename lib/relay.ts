@@ -95,8 +95,13 @@ export async function relay({ body, model, who, injectSynapsEvent, fallbacks }: 
 
   if (!stream) {
     const json = await upstream.json();
+    if (json?.error) {
+      console.error("[relay] error in body", model.id, JSON.stringify(json.error).slice(0, 500));
+      return Response.json({ error: { message: describeError(json.error), code: json.error.code } }, { status: Number(json.error.code) || 502 });
+    }
     const s = await settle(who, model, json.usage);
     if (json.usage) json.usage.cost = s.charged / 1_000_000;
+    if (injectSynapsEvent) json.synaps = { charged_micros: s.charged, balance_micros: s.balance, prompt_tokens: s.pt, completion_tokens: s.ct };
     return Response.json(json);
   }
 

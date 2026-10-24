@@ -36,7 +36,7 @@ export async function POST(req: Request) {
   // forward only standard OpenAI fields
   const allowed = [
     "messages", "stream", "max_tokens", "temperature", "top_p", "stop", "tools", "tool_choice",
-    "response_format", "seed", "frequency_penalty", "presence_penalty", "reasoning",
+    "response_format", "seed", "frequency_penalty", "presence_penalty", "reasoning", "modalities",
   ];
   const clean: Record<string, any> = {};
   for (const k of allowed) if (body[k] !== undefined) clean[k] = body[k];

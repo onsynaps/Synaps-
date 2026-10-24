@@ -13,7 +13,14 @@ export type Model = {
   listCompletionPrice: number;
   lane: Lane;
   free: boolean;
+  inputs: string[]; // e.g. ["text", "image", "file"]
+  outputs: string[]; // e.g. ["text"] or ["text", "image"]
+  imagePrice: number; // USD per generated/input image when the provider prices it, with markup
 };
+
+export const canReadImages = (m: Pick<Model, "inputs">) => m.inputs.includes("image");
+export const canMakeImages = (m: Pick<Model, "outputs">) => m.outputs.includes("image");
+export const readsFilesNatively = (m: Pick<Model, "inputs">) => m.inputs.includes("file");
 
 const MAKERS: Record<string, string> = {
   anthropic: "Anthropic",
@@ -57,13 +64,20 @@ export async function getModels(): Promise<Model[]> {
     const makerName = MAKERS[maker] || maker.split(/[-_]/).map((w) => w.charAt(0).toUpperCase() + w.slice(1)).join(" ");
     if (id.includes(":") && !free) continue;
     const modality: string = m.architecture?.modality ?? "text->text";
-    if (!modality.endsWith("->text")) continue;
+    const [inPart = "text", outPart = "text"] = modality.split("->");
+    const inputs: string[] = Array.isArray(m.architecture?.input_modalities) ? m.architecture.input_modalities : inPart.split("+");
+    const outputs: string[] = Array.isArray(m.architecture?.output_modalities) ? m.architecture.output_modalities : outPart.split("+");
+    // keep chat models and image generators; skip audio/video/embedding-only endpoints
+    if (!outputs.includes("text") && !outputs.includes("image")) continue;
     const p = Number(m.pricing?.prompt ?? 0);
     const c = Number(m.pricing?.completion ?? 0);
-    if (!free && (p < 0 || c < 0 || (p === 0 && c === 0))) continue;
-    const bucket = free ? "free" : maker;
+    if (!free && (p < 0 || c < 0)) continue;
+    const makesImages = outputs.includes("image");
+    if (!free && p === 0 && c === 0 && !(makesImages && Number(m.pricing?.image))) continue;
+    // image generators get their own bucket so they are never crowded out by chat models
+    const bucket = free ? "free" : makesImages ? "img:" + maker : maker;
     counts[bucket] = (counts[bucket] ?? 0) + 1;
-    if (counts[bucket] > (free ? 12 : PER_MAKER)) continue;
+    if (counts[bucket] > (free ? 12 : makesImages ? 3 : PER_MAKER)) continue;
     out.push({
       id,
       name: String(m.name ?? id).replace(/^[^:]+:\s*/, ""),
@@ -75,6 +89,9 @@ export async function getModels(): Promise<Model[]> {
       completionPrice: free ? 0 : c * k,
       lane: laneOf(id, free),
       free,
+      inputs,
+      outputs,
+      imagePrice: free ? 0 : Number(m.pricing?.image ?? 0) * k,
     });
   }
   cache = { at: Date.now(), models: out };
