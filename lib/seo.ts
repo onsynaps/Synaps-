@@ -2,6 +2,12 @@ import { env } from "./env";
 import type { Model } from "./models";
 
 export const SITE = env.siteUrl.replace(/\/+$/, "");
+export const DEFAULT_OG = { url: "/opengraph-image.jpg", width: 1200, height: 630, alt: "Synaps — every AI model, one wallet" };
+/** Social card with the Synaps logo for any page. */
+export function ogCard(kicker: string, title: string, sub?: string) {
+  const q = new URLSearchParams({ k: kicker, t: title, ...(sub ? { s: sub } : {}) });
+  return { url: `/api/og?${q.toString()}`, width: 1200, height: 630, alt: title };
+}
 export const modelPath = (id: string) => "/models/" + id;
 export const idFromSlug = (slug: string[]) => slug.map(decodeURIComponent).join("/");
 

@@ -2,7 +2,7 @@ import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { getModels, type Model } from "@/lib/models";
 import { env } from "@/lib/env";
-import { SITE, modelPath, idFromSlug, ctxLabel, per1M, money, caps } from "@/lib/seo";
+import { SITE, modelPath, idFromSlug, ctxLabel, per1M, money, caps, ogCard } from "@/lib/seo";
 import { CopyButton } from "@/components/docs/CopyButton";
 
 export const revalidate = 600;
@@ -30,13 +30,14 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { m } = r;
   const price = m.free ? "free" : `${money(per1M(m.promptPrice))} input / ${money(per1M(m.completionPrice))} output per 1M tokens`;
   const title = `${m.name} API — pay per message with crypto`;
+  const card = ogCard(`${m.maker} · ${ctxLabel(m.context)} context`, `${m.name}`, m.free ? "Free to use · no wallet needed" : `${money(per1M(m.promptPrice))} in · ${money(per1M(m.completionPrice))} out per 1M tokens`);
   const description = `Use ${m.name} by ${m.maker} in chat or through an OpenAI-compatible API. ${m.free ? "Free to try, no wallet needed." : `Priced at ${price}.`} Top up with ETH or USDC on Robinhood Chain or Base. No subscription.`;
   return {
     title,
     description,
     alternates: { canonical: modelPath(m.id) },
-    openGraph: { title: `${m.name} on Synaps`, description, url: SITE + modelPath(m.id) },
-    twitter: { title: `${m.name} on Synaps`, description },
+    openGraph: { title: `${m.name} on Synaps`, description, url: SITE + modelPath(m.id), images: [card] },
+    twitter: { card: "summary_large_image", title: `${m.name} on Synaps`, description, images: [card.url] },
   };
 }
 

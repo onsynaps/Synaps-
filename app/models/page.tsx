@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import { getModels, type Model } from "@/lib/models";
-import { SITE, modelPath, ctxLabel, per1M, money } from "@/lib/seo";
+import { SITE, modelPath, ctxLabel, per1M, money, DEFAULT_OG } from "@/lib/seo";
 
 export const revalidate = 600;
 
@@ -9,7 +9,8 @@ export const metadata: Metadata = {
   description:
     "Every model on Synaps with live per-token prices: Claude, GPT, Gemini, Grok, DeepSeek, Qwen, Kimi, Mistral, Llama and free models. Pay per message with ETH or USDC. OpenAI-compatible API.",
   alternates: { canonical: "/models" },
-  openGraph: { title: "AI models on Synaps", description: "Live prices for Claude, GPT, Gemini, DeepSeek and more. Pay per message with crypto.", url: SITE + "/models" },
+  openGraph: { title: "AI models on Synaps", description: "Live prices for Claude, GPT, Gemini, DeepSeek and more. Pay per message with crypto.", url: SITE + "/models", images: [DEFAULT_OG] },
+  twitter: { card: "summary_large_image", title: "AI models on Synaps", description: "Live prices for Claude, GPT, Gemini, DeepSeek and more. Pay per message with crypto.", images: [DEFAULT_OG.url] },
 };
 
 export default async function ModelsIndex() {

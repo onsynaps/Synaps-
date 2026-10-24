@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { db } from "@/lib/db";
-import { SITE } from "@/lib/seo";
+import { SITE, ogCard } from "@/lib/seo";
 import type { StoredMsg } from "@/lib/chat-shape";
 import { PublicShell } from "@/components/PublicShell";
 import { Markdown } from "@/components/app/Markdown";
@@ -25,14 +25,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const s = await load(id);
   if (!s) return { title: "Chat not found", robots: { index: false } };
   const first = s.messages.find((m) => m.role === "assistant")?.content ?? "";
+  const card = ogCard(s.model ? `Shared chat · ${s.model.split("/").pop()}` : "Shared chat", s.title || "Shared chat");
   const description = first.replace(/[#*_`>\[\]()]/g, "").replace(/\s+/g, " ").slice(0, 160);
   return {
     title: s.title || "Shared chat",
     description,
     robots: { index: false, follow: true }, // people's chats stay out of search results
     alternates: { canonical: `/s/${s.id}` },
-    openGraph: { title: `${s.title || "Shared chat"} · Synaps`, description, url: `${SITE}/s/${s.id}`, type: "article" },
-    twitter: { card: "summary_large_image", title: `${s.title || "Shared chat"} · Synaps`, description },
+    openGraph: { title: `${s.title || "Shared chat"} · Synaps`, description, url: `${SITE}/s/${s.id}`, type: "article", images: [card] },
+    twitter: { card: "summary_large_image", title: `${s.title || "Shared chat"} · Synaps`, description, images: [card.url] },
   };
 }
 
