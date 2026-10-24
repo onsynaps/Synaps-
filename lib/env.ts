@@ -9,6 +9,7 @@ export const env = {
   rhRpc: process.env.RH_RPC_URL || "https://rpc.mainnet.chain.robinhood.com",
   baseRpc: process.env.BASE_RPC_URL || "https://mainnet.base.org",
   treasury: (process.env.NEXT_PUBLIC_TREASURY || "").toLowerCase(),
+  privyAppId: process.env.NEXT_PUBLIC_PRIVY_APP_ID || "cmudyp5x100240ck2rd5rvkcd",
   siteUrl: process.env.NEXT_PUBLIC_SITE_URL || "https://synaps.chat",
 };
 

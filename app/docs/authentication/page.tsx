@@ -27,12 +27,12 @@ export default function Auth() {
       <h2>Wallet sign-in (app)</h2>
       <p>The web app signs you in with a message signature, not a password:</p>
       <ol>
-        <li>Your wallet shares its address.</li>
+        <li>You pick a wallet in the connect window and it shares its address.</li>
         <li>Synaps creates a one-time nonce that expires after 10 minutes.</li>
         <li>You sign a readable message containing your address and that nonce. No gas, no transaction, no approvals.</li>
         <li>Synaps verifies the signature and sets a secure, HTTP-only session cookie valid for 7 days.</li>
       </ol>
-      <p>Sign-in currently supports standard wallets (EOAs) through an injected provider such as MetaMask, Rabby or Coinbase Wallet, including their in-app browsers on mobile.</p>
+      <p>The wallet picker is powered by Privy. It supports browser extensions such as MetaMask, Rabby and Coinbase Wallet, and WalletConnect, so you can sign in from any phone browser by approving in your mobile wallet app. Standard wallets (EOAs) are supported; smart-contract wallets are not yet.</p>
 
       <h2>Checking a key</h2>
       <p>Send a one-token request. A <code>200</code> means the key is valid; <code>401</code> means it is wrong or revoked; <code>402</code> means the key works but the balance is too low for a paid model.</p>

@@ -2,31 +2,19 @@
 import { encodeFunctionData, parseAbi, toHex } from "viem";
 import { CHAINS, USDC_BASE, type ChainKey } from "./chains";
 
-type Eth = { request: (args: { method: string; params?: any[] }) => Promise<any> };
+/** Minimal EIP-1193 provider, as returned by Privy's `wallet.getEthereumProvider()`. */
+export type Eth = { request: (args: { method: string; params?: any[] }) => Promise<any> };
 
-export function getEthereum(): Eth | null {
-  if (typeof window === "undefined") return null;
-  return ((window as any).ethereum as Eth) || null;
-}
-
-export async function connectWallet(): Promise<string> {
-  const eth = getEthereum();
-  if (!eth) throw new Error("No wallet found. Open Synaps in a wallet browser (MetaMask, Rabby, Coinbase Wallet) or install one.");
-  const accounts: string[] = await eth.request({ method: "eth_requestAccounts" });
-  if (!accounts?.length) throw new Error("No account was shared.");
-  return accounts[0].toLowerCase();
-}
-
-export async function signIn(): Promise<string> {
-  const eth = getEthereum();
-  const address = await connectWallet();
+/** Proves wallet ownership to the Synaps server by signing a one-time nonce. */
+export async function signInWith(eth: Eth, address: string): Promise<string> {
+  const addr = address.toLowerCase();
   const n = await fetch("/api/auth/nonce", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ address }),
+    body: JSON.stringify({ address: addr }),
   }).then((r) => r.json());
   if (!n.message) throw new Error(n.error?.message || "Could not start sign-in.");
-  const signature: string = await eth!.request({ method: "personal_sign", params: [toHex(n.message), address] });
+  const signature: string = await eth.request({ method: "personal_sign", params: [toHex(n.message), addr] });
   const v = await fetch("/api/auth/verify", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -36,14 +24,12 @@ export async function signIn(): Promise<string> {
   return v.address;
 }
 
-export async function switchChain(key: ChainKey) {
-  const eth = getEthereum();
-  if (!eth) throw new Error("No wallet found.");
+export async function switchChain(eth: Eth, key: ChainKey) {
   const c = CHAINS[key];
   try {
     await eth.request({ method: "wallet_switchEthereumChain", params: [{ chainId: c.hexId }] });
   } catch (e: any) {
-    if (e?.code === 4902 || /unrecognized|not added|unknown chain/i.test(e?.message || "")) {
+    if (e?.code === 4902 || /unrecognized|not added|unknown chain|not supported/i.test(e?.message || "")) {
       await eth.request({
         method: "wallet_addEthereumChain",
         params: [{
@@ -60,10 +46,8 @@ export async function switchChain(key: ChainKey) {
   }
 }
 
-export async function sendTopup(opts: { chain: ChainKey; asset: "ETH" | "USDC"; usd: number; ethUsd: number; from: string; treasury: string }): Promise<string> {
-  const eth = getEthereum();
-  if (!eth) throw new Error("No wallet found.");
-  await switchChain(opts.chain);
+export async function sendTopup(eth: Eth, opts: { chain: ChainKey; asset: "ETH" | "USDC"; usd: number; ethUsd: number; from: string; treasury: string }): Promise<string> {
+  await switchChain(eth, opts.chain);
   if (opts.asset === "ETH") {
     const wei = BigInt(Math.floor((opts.usd / opts.ethUsd) * 1e18));
     return eth.request({ method: "eth_sendTransaction", params: [{ from: opts.from, to: opts.treasury, value: "0x" + wei.toString(16) }] });

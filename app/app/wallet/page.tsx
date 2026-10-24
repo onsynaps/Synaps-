@@ -18,7 +18,7 @@ const AMOUNTS = [1, 5, 20, 50];
 const time = (s: string) => new Date(s).toLocaleString(undefined, { month: "short", day: "numeric", hour: "2-digit", minute: "2-digit" });
 
 export default function WalletPage() {
-  const { me, signIn, refresh } = useSession();
+  const { me, signIn, refresh, getProvider } = useSession();
   const [opt, setOpt] = useState(0);
   const [amount, setAmount] = useState(5);
   const [custom, setCustom] = useState("");
@@ -72,7 +72,8 @@ export default function WalletPage() {
         if (!ethUsd) throw new Error("Could not load the ETH price. Try again.");
       }
       setStatus({ kind: "info", text: "Confirm the payment in your wallet…" });
-      const hash = await sendTopup({ chain: o.chain, asset: o.asset, usd, ethUsd, from: me.address, treasury: me.treasury });
+      const eth = await getProvider();
+      const hash = await sendTopup(eth, { chain: o.chain, asset: o.asset, usd, ethUsd, from: me.address, treasury: me.treasury });
       setPending({ hash, chain: o.chain });
       await verify(hash, o.chain);
     } catch (e: any) {

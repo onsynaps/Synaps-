@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
+    "@privy-io/react-auth": "^3.0.0",
     "@supabase/supabase-js": "^2.45.0",
     "gsap": "^3.12.5",
     "jose": "^5.9.0",
